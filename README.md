@@ -26,17 +26,17 @@ Tags
  - HasGravity -> If the entity is effected by gravity
 
 Components
- - Life -> frame that this entity dies
- - Fades -> if the entitiy fades as it loses life (store the rate of fade)
+ - DeathTime -> frame that this entity dies
+ - Fades -> if the entitiy fades as it loses life (store the rate of fade) and min possible value.
  - Explodes -> stores the number of particles it spawns and the base color
  - Graphics -> color and radius of the entity
  - Position -> x y
  - Velocity -> dx dy
 
 Systems
- - Life -> Marks entities dead 
+ - Death -> Marks entities dead 
  - Explosion -> spawns explosion particles for newly dead entities
- - Fade -> updates the color based on remaining life
+ - Fade -> updates the color based on rates.
  - Gravity -> lowers y velocity of an entity if it is effected
  - Move -> applies velocity to a position
  - Graphics -> creates a list of position, color, radius to be drawn

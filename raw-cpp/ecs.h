@@ -1,3 +1,4 @@
+#include <algorithm>
 #include <bitset>
 #include <cstdint>
 #include <vector>
@@ -13,7 +14,14 @@ struct Color {
   uint8_t a;
 };
 
-struct CompLife {
+struct ToDraw {
+  Color color;
+  float radius;
+  float x;
+  float y;
+};
+
+struct CompDeathTime {
   uint32_t dead_frame;
 };
 
@@ -43,30 +51,62 @@ struct CompVelocity {
   float dy;
 };
 
-struct Signiture {
-  static constexpr int32_t LIFE_INDEX = 0;
-  static constexpr int32_t FADES_INDEX = 1;
-  static constexpr int32_t EXPLODES_INDEX = 2;
-  static constexpr int32_t GRAPHICS_INDEX = 3;
-  static constexpr int32_t POSITION_INDEX = 4;
-  static constexpr int32_t VELOCITY_INDEX = 5;
-  static constexpr int32_t HAS_GRAVITY_INDEX = 6;
-  static constexpr int32_t COUNT = 7;
+class Signiture {
+ public:
+  static constexpr int32_t IS_ALIVE_INDEX = 0;
+  static constexpr int32_t DEATH_TIME_INDEX = 1;
+  static constexpr int32_t FADES_INDEX = 2;
+  static constexpr int32_t EXPLODES_INDEX = 3;
+  static constexpr int32_t GRAPHICS_INDEX = 4;
+  static constexpr int32_t POSITION_INDEX = 5;
+  static constexpr int32_t VELOCITY_INDEX = 6;
+  static constexpr int32_t FEELS_GRAVITY_INDEX = 7;
+  static constexpr int32_t COUNT = 8;
 
-  std::bitset<COUNT> data;
+  struct Initializer {
+    bool isAlive = false;
+    bool hasDeathTime = false;
+    bool hasFades = false;
+    bool hasExplodes = false;
+    bool hasGraphics = false;
+    bool hasPosition = false;
+    bool hasVelocity = false;
+    bool feelsGravity = false;
+  };
 
-  bool operator[](size_t x) { return data[x]; }
+  Signiture() {}
+  Signiture(Initializer init) {
+    data_[IS_ALIVE_INDEX] = init.isAlive;
+    data_[DEATH_TIME_INDEX] = init.hasDeathTime;
+    data_[FADES_INDEX] = init.hasFades;
+    data_[EXPLODES_INDEX] = init.hasExplodes;
+    data_[GRAPHICS_INDEX] = init.hasGraphics;
+    data_[POSITION_INDEX] = init.hasPosition;
+    data_[VELOCITY_INDEX] = init.hasVelocity;
+    data_[FEELS_GRAVITY_INDEX] = init.feelsGravity;
+  }
+
+  bool operator[](size_t x) const { return data_[x]; }
+  std::bitset<COUNT>::reference operator[](size_t x) { return data_[x]; }
+
+  bool matches(Signiture other) const {
+    return (data_ & other.data_) == other.data_;
+  }
+
+ private:
+  std::bitset<COUNT> data_;
 };
 
 struct Entity {
   int32_t id;
-  bool dead;
   Signiture signiture;
+
+  bool matches(Signiture other) const { return signiture.matches(other); }
 };
 
 struct ECS {
   std::vector<Entity> entities;
-  std::vector<CompLife> life;
+  std::vector<CompDeathTime> death_time;
   std::vector<CompFades> fades;
   std::vector<CompExplodes> explodes;
   std::vector<CompGraphics> graphics;
@@ -80,7 +120,7 @@ struct ECS {
 
   void SetMaxEntities(uint32_t max) {
     entities.resize(max);
-    life.resize(max);
+    death_time.resize(max);
     fades.resize(max);
     explodes.resize(max);
     graphics.resize(max);
@@ -88,14 +128,54 @@ struct ECS {
     velocity.resize(max);
   }
 
-  void Step(uint32_t current_frame) { RunLifeSystem(current_frame); }
+  void Step(uint32_t current_frame) {
+    RunFadeSystem();
+    RunGraphicsSystem();
+    RunDeathSystem(current_frame);
+  }
 
-  void RunLifeSystem(uint32_t current_frame) {
+  void RunDeathSystem(uint32_t current_frame) {
+    Signiture sig({.isAlive = true, .hasDeathTime = true});
     for (uint32_t i = 0; i < size; ++i) {
       Entity& e = entities[i];
-      if (e.signiture[Signiture::LIFE_INDEX]) {
-        e.dead = current_frame == life[e.id].dead_frame;
+      if (e.matches(sig)) {
+        e.signiture[Signiture::IS_ALIVE_INDEX] =
+            current_frame < death_time[e.id].dead_frame;
       }
     }
+  }
+
+  void RunFadeSystem() {
+    Signiture sig({.isAlive = true, .hasFades = true, .hasGraphics = true});
+    for (uint32_t i = 0; i < size; ++i) {
+      Entity& e = entities[i];
+      if (e.matches(sig)) {
+        Color& color = graphics[e.id].color;
+        CompFades& f = fades[e.id];
+        auto updateColor = [](uint8_t& c, uint8_t min, uint8_t rate) {
+          c = std::max(min, static_cast<uint8_t>(std::min(c - rate, 0)));
+        };
+        updateColor(color.r, f.color_min, f.color_rate);
+        updateColor(color.g, f.color_min, f.color_rate);
+        updateColor(color.b, f.color_min, f.color_rate);
+        updateColor(color.a, f.opacity_min, f.opacity_rate);
+      }
+    }
+  }
+
+  std::vector<ToDraw> RunGraphicsSystem() {
+    Signiture sig({.isAlive = true, .hasGraphics = true, .hasPosition = true});
+    std::vector<ToDraw> out;
+    out.reserve(size);
+    for (uint32_t i = 0; i < size; ++i) {
+      Entity& e = entities[i];
+      if (e.matches(sig)) {
+        CompGraphics g = graphics[e.id];
+        CompPosition p = position[e.id];
+        out.push_back(
+            {.color = g.color, .radius = g.radius, .x = p.x, .y = p.y});
+      }
+    }
+    return out;
   }
 };
