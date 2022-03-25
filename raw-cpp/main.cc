@@ -65,6 +65,8 @@ int main() {
   int h, w, frames;
   Uint32 last_print = SDL_GetTicks();
   while (true) {
+    Uint64 start = SDL_GetPerformanceCounter();
+
     SDL_PollEvent(&event);
     if (event.type == SDL_QUIT) {
       break;
@@ -81,6 +83,12 @@ int main() {
       frames = 0;
       last_print = SDL_GetTicks();
     }
+
+    // Cap to 60 FPS
+    Uint64 end = SDL_GetPerformanceCounter();
+    float elapsedMS =
+        (end - start) / (float)SDL_GetPerformanceFrequency() * 1000.0f;
+    SDL_Delay(floor(1000.0 / 60.0 - elapsedMS));
   }
 
   SDL_DestroyRenderer(renderer);
