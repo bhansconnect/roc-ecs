@@ -3,13 +3,7 @@
 #include <iostream>
 
 #include "SDL.h"
-
-struct Color {
-  uint8_t r;
-  uint8_t g;
-  uint8_t b;
-  uint8_t a;
-};
+#include "ecs.h"
 
 void draw_circle(SDL_Renderer *renderer, float raw_center_x, float raw_center_y,
                  float raw_radius, Color color, int width, int height) {
@@ -62,7 +56,9 @@ int main() {
     return 3;
   }
 
-  int h, w, frames;
+  ECS ecs(100);
+  int h, w;
+  uint32_t frames = 0, current_frame = 0;
   Uint32 last_print = SDL_GetTicks();
   while (true) {
     Uint64 start = SDL_GetPerformanceCounter();
@@ -74,8 +70,10 @@ int main() {
     SDL_SetRenderDrawColor(renderer, 0x00, 0x00, 0x00, 0x00);
     SDL_RenderClear(renderer);
     SDL_GetWindowSize(window, &w, &h);
+    ecs.Step(current_frame);
     draw_circle(renderer, 0.5, 0.5, 0.01, {.r = 255, .a = 255}, w, h);
     SDL_RenderPresent(renderer);
+    ++current_frame;
     ++frames;
 
     if (SDL_GetTicks() - last_print > 1000) {
