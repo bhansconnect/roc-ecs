@@ -11,5 +11,15 @@ project(
 
 sdl2_dep = dependency('sdl2')
 
-executable('ecs-test', 'main.cc', dependencies: sdl2_dep)
+pcg_proj = subproject('pcg')
+pcg_dep = pcg_proj.get_variable('pcg_cpp_dep')
+
+executable(
+    'ecs-test',
+    'main.cc',
+    dependencies: [
+        sdl2_dep,
+        pcg_dep,
+    ]
+)
 

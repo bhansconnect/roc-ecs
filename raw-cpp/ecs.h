@@ -1,7 +1,10 @@
 #include <algorithm>
 #include <bitset>
 #include <cstdint>
+#include <random>
 #include <vector>
+
+#include "pcg_random.hpp"
 
 // A lot of this library is just done the way it is for simplicity.
 // That is the reason for one header file and systems just built into the
@@ -109,7 +112,10 @@ struct Entity {
 
 class ECS {
  public:
-  explicit ECS(int32_t max) { SetMaxEntities(max); }
+  explicit ECS(int32_t max)
+      : rng_(pcg_extras::seed_seq_from<std::random_device>()) {
+    SetMaxEntities(max);
+  }
 
   // This will clear all current entities.
   void SetMaxEntities(int32_t max) {
@@ -172,12 +178,24 @@ class ECS {
       if (e == nullptr) return;
 
       int32_t id = e->id;
-      death_time_[id] = {.dead_frame = current_frame + 60};
+      float rise_speed =
+          std::uniform_real_distribution<float>(0.01, 0.025)(rng_);
+      float frames_to_cross_screen = 1.0 / rise_speed;
+      int32_t life_in_frames = std::uniform_int_distribution<int>(
+          frames_to_cross_screen * 0.6, frames_to_cross_screen * 0.95)(rng_);
+      death_time_[id] = {.dead_frame = current_frame + life_in_frames};
       explodes_[id] = {.num_particles = explosion_particles};
-      graphics_[id] = {.color = {.r = 255, .g = 255, .b = 255, .a = 255},
+
+      bool is_green = std::uniform_int_distribution<>(0, 1)(rng_);
+      graphics_[id] = {.color = {.r = 0,
+                                 .g = static_cast<uint8_t>(is_green ? 255 : 0),
+                                 .b = static_cast<uint8_t>(is_green ? 0 : 255),
+                                 .a = 255},
                        .radius = 0.02};
-      position_[id] = {.x = 0.5, .y = 0.0};
-      velocity_[id] = {.dy = 0.01};
+
+      float x = std::uniform_real_distribution<float>(0.05, 0.95)(rng_);
+      position_[id] = {.x = x, .y = 0.0};
+      velocity_[id] = {.dy = rise_speed};
       e->signiture = Signiture({.isAlive = true,
                                 .hasDeathTime = true,
                                 .hasExplodes = true,
@@ -245,6 +263,8 @@ class ECS {
     return out;
   }
 
+  // TODO: evaluate if entities_ should really be some for of ordered map or
+  // have some other way to remain ordered.
   std::vector<Entity> entities_;
   std::vector<CompDeathTime> death_time_;
   std::vector<CompFades> fades_;
@@ -258,4 +278,6 @@ class ECS {
   // This is the number of active + newly created entities.
   int32_t new_size_;
   int32_t max_;
+
+  pcg32 rng_;
 };
