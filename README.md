@@ -34,6 +34,7 @@ Components
  - Velocity -> dx dy
 
 Systems
+ - Spawn -> creates a firework every n frames
  - Death -> Marks entities dead 
  - Explosion -> spawns explosion particles for newly dead entities
  - Fade -> updates the color based on rates.

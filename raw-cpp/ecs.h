@@ -22,7 +22,7 @@ struct ToDraw {
 };
 
 struct CompDeathTime {
-  uint32_t dead_frame;
+  int32_t dead_frame;
 };
 
 struct CompFades {
@@ -33,12 +33,12 @@ struct CompFades {
 };
 
 struct CompExplodes {
-  uint32_t num_particles;
+  int32_t num_particles;
 };
 
 struct CompGraphics {
-  float radius;
   Color color;
+  float radius;
 };
 
 struct CompPosition {
@@ -89,7 +89,9 @@ class Signiture {
   bool operator[](size_t x) const { return data_[x]; }
   std::bitset<COUNT>::reference operator[](size_t x) { return data_[x]; }
 
-  bool matches(Signiture other) const {
+  bool IsAlive() const { return data_[IS_ALIVE_INDEX]; }
+
+  bool Matches(Signiture other) const {
     return (data_ & other.data_) == other.data_;
   }
 
@@ -101,57 +103,121 @@ struct Entity {
   int32_t id;
   Signiture signiture;
 
-  bool matches(Signiture other) const { return signiture.matches(other); }
+  bool IsAlive() { return signiture.IsAlive(); }
+  bool Matches(Signiture other) const { return signiture.Matches(other); }
 };
 
-struct ECS {
-  std::vector<Entity> entities;
-  std::vector<CompDeathTime> death_time;
-  std::vector<CompFades> fades;
-  std::vector<CompExplodes> explodes;
-  std::vector<CompGraphics> graphics;
-  std::vector<CompPosition> position;
-  std::vector<CompVelocity> velocity;
+class ECS {
+ public:
+  explicit ECS(int32_t max) { SetMaxEntities(max); }
 
-  uint32_t size;
-  uint32_t new_size;
-
-  explicit ECS(uint32_t max) { SetMaxEntities(max); }
-
-  void SetMaxEntities(uint32_t max) {
-    entities.resize(max);
-    death_time.resize(max);
-    fades.resize(max);
-    explodes.resize(max);
-    graphics.resize(max);
-    position.resize(max);
-    velocity.resize(max);
+  // This will clear all current entities.
+  void SetMaxEntities(int32_t max) {
+    entities_.resize(max);
+    death_time_.resize(max);
+    fades_.resize(max);
+    explodes_.resize(max);
+    graphics_.resize(max);
+    position_.resize(max);
+    velocity_.resize(max);
+    size_ = 0;
+    new_size_ = 0;
+    max_ = max;
+    for (int32_t i = 0; i < max; ++i) {
+      entities_[i].id = i;
+      entities_[i].signiture = Signiture();
+    }
   }
 
-  void Step(uint32_t current_frame) {
-    RunFadeSystem();
-    RunGraphicsSystem();
+  std::vector<ToDraw> Step(int32_t current_frame, int32_t spawn_interval,
+                           int32_t explosion_particles) {
     RunDeathSystem(current_frame);
+    RunFadeSystem();
+    RunMoveSystem();
+    RunSpawnSystem(current_frame, spawn_interval, explosion_particles);
+    Refresh();
+    return RunGraphicsSystem();
   }
 
-  void RunDeathSystem(uint32_t current_frame) {
+ private:
+  // This actually adds all of the new entities into the active list.
+  // It also remove old dead entites.
+  void Refresh() {
+    int32_t i = 0;
+    int32_t j = new_size_ - 1;
+    while (i <= j) {
+      while (entities_[i].IsAlive()) ++i;
+      if (i >= j) break;
+      while (!entities_[j].IsAlive()) --j;
+      if (i >= j) break;
+      std::swap(entities_[i], entities_[j]);
+    }
+    size_ = i;
+    new_size_ = i;
+  }
+
+  Entity* AddEntity() {
+    if (new_size_ < max_) {
+      Entity* e = &entities_[new_size_];
+      ++new_size_;
+      return e;
+    }
+    return nullptr;
+  }
+
+  void RunSpawnSystem(int32_t current_frame, int32_t spawn_interval,
+                      int32_t explosion_particles) {
+    if (current_frame % spawn_interval == 0) {
+      Entity* e = AddEntity();
+      if (e == nullptr) return;
+
+      int32_t id = e->id;
+      death_time_[id] = {.dead_frame = current_frame + 60};
+      explodes_[id] = {.num_particles = explosion_particles};
+      graphics_[id] = {.color = {.r = 255, .g = 255, .b = 255, .a = 255},
+                       .radius = 0.02};
+      position_[id] = {.x = 0.5, .y = 0.0};
+      velocity_[id] = {.dy = 0.01};
+      e->signiture = Signiture({.isAlive = true,
+                                .hasDeathTime = true,
+                                .hasExplodes = true,
+                                .hasGraphics = true,
+                                .hasPosition = true,
+                                .hasVelocity = true});
+    }
+  }
+
+  void RunDeathSystem(int32_t current_frame) {
     Signiture sig({.isAlive = true, .hasDeathTime = true});
-    for (uint32_t i = 0; i < size; ++i) {
-      Entity& e = entities[i];
-      if (e.matches(sig)) {
+    for (int32_t i = 0; i < size_; ++i) {
+      Entity& e = entities_[i];
+      if (e.Matches(sig)) {
         e.signiture[Signiture::IS_ALIVE_INDEX] =
-            current_frame < death_time[e.id].dead_frame;
+            current_frame < death_time_[e.id].dead_frame;
+      }
+    }
+  }
+
+  void RunMoveSystem() {
+    Signiture sig({.isAlive = true, .hasPosition = true, .hasVelocity = true});
+    for (int32_t i = 0; i < size_; ++i) {
+      Entity& e = entities_[i];
+      if (e.Matches(sig)) {
+        CompPosition& p = position_[e.id];
+        CompVelocity v = velocity_[e.id];
+        p.x += v.dx;
+        p.y += v.dy;
       }
     }
   }
 
   void RunFadeSystem() {
     Signiture sig({.isAlive = true, .hasFades = true, .hasGraphics = true});
-    for (uint32_t i = 0; i < size; ++i) {
-      Entity& e = entities[i];
-      if (e.matches(sig)) {
-        Color& color = graphics[e.id].color;
-        CompFades& f = fades[e.id];
+    for (int32_t i = 0; i < size_; ++i) {
+      Entity& e = entities_[i];
+      if (e.Matches(sig)) {
+        Color& color = graphics_[e.id].color;
+        CompFades& f = fades_[e.id];
         auto updateColor = [](uint8_t& c, uint8_t min, uint8_t rate) {
           c = std::max(min, static_cast<uint8_t>(std::min(c - rate, 0)));
         };
@@ -166,16 +232,30 @@ struct ECS {
   std::vector<ToDraw> RunGraphicsSystem() {
     Signiture sig({.isAlive = true, .hasGraphics = true, .hasPosition = true});
     std::vector<ToDraw> out;
-    out.reserve(size);
-    for (uint32_t i = 0; i < size; ++i) {
-      Entity& e = entities[i];
-      if (e.matches(sig)) {
-        CompGraphics g = graphics[e.id];
-        CompPosition p = position[e.id];
+    out.reserve(size_);
+    for (int32_t i = 0; i < size_; ++i) {
+      Entity& e = entities_[i];
+      if (e.Matches(sig)) {
+        CompGraphics g = graphics_[e.id];
+        CompPosition p = position_[e.id];
         out.push_back(
             {.color = g.color, .radius = g.radius, .x = p.x, .y = p.y});
       }
     }
     return out;
   }
+
+  std::vector<Entity> entities_;
+  std::vector<CompDeathTime> death_time_;
+  std::vector<CompFades> fades_;
+  std::vector<CompExplodes> explodes_;
+  std::vector<CompGraphics> graphics_;
+  std::vector<CompPosition> position_;
+  std::vector<CompVelocity> velocity_;
+
+  // This is the number of active entities.
+  int32_t size_;
+  // This is the number of active + newly created entities.
+  int32_t new_size_;
+  int32_t max_;
 };

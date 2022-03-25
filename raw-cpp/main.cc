@@ -8,7 +8,7 @@
 void draw_circle(SDL_Renderer *renderer, float raw_center_x, float raw_center_y,
                  float raw_radius, Color color, int width, int height) {
   int center_x = std::round(raw_center_x * width);
-  int center_y = std::round(raw_center_y * height);
+  int center_y = std::round((1.0 - raw_center_y) * height);
   int radius = std::max(
       static_cast<int>(std::round(raw_radius * (height + width) / 2.0)), 1);
 
@@ -58,7 +58,7 @@ int main() {
 
   ECS ecs(100);
   int h, w;
-  uint32_t frames = 0, current_frame = 0;
+  int32_t frames = 0, current_frame = 0, spawn_interval = 15;
   Uint32 last_print = SDL_GetTicks();
   while (true) {
     Uint64 start = SDL_GetPerformanceCounter();
@@ -70,8 +70,11 @@ int main() {
     SDL_SetRenderDrawColor(renderer, 0x00, 0x00, 0x00, 0x00);
     SDL_RenderClear(renderer);
     SDL_GetWindowSize(window, &w, &h);
-    ecs.Step(current_frame);
-    draw_circle(renderer, 0.5, 0.5, 0.01, {.r = 255, .a = 255}, w, h);
+    for (const auto &to_draw :
+         ecs.Step(current_frame, spawn_interval, spawn_interval)) {
+      draw_circle(renderer, to_draw.x, to_draw.y, to_draw.radius, to_draw.color,
+                  w, h);
+    }
     SDL_RenderPresent(renderer);
     ++current_frame;
     ++frames;
