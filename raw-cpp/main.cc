@@ -57,11 +57,13 @@ int main() {
   }
   SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_BLEND);
 
-  int max_entities = 128;
+  int max_entities = 512;
   ECS ecs(max_entities);
   int h, w;
-  int32_t frames = 0, current_frame = 0, spawn_interval = 15;
+  int32_t frames = 0, current_frame = 0;
   int32_t entity_count = 0;
+  float spawn_rate = 1.0f / 15.0f;
+  bool render = true;
   Uint32 last_print = SDL_GetTicks();
   while (true) {
     Uint64 start = SDL_GetPerformanceCounter();
@@ -82,25 +84,28 @@ int main() {
           ecs.SetMaxEntities(max_entities);
           break;
         case SDLK_DOWN:
-          spawn_interval = std::max(1, spawn_interval - 1);
-          std::cout << "Spawn Interval: " << spawn_interval << '\n';
+          spawn_rate *= 1.0f / 1.1f;
+          std::cout << "Spawn Rate: " << spawn_rate << '\n';
           break;
         case SDLK_UP:
-          ++spawn_interval;
-          std::cout << "Spawn Interval: " << spawn_interval << '\n';
+          spawn_rate *= 1.1f;
+          std::cout << "Spawn Rate: " << spawn_rate << '\n';
+          break;
+        case SDLK_x:
+          render = !render;
           break;
       }
     }
     SDL_SetRenderDrawColor(renderer, 0x00, 0x00, 0x00, 0x00);
-    SDL_RenderClear(renderer);
+    if (render) SDL_RenderClear(renderer);
     SDL_GetWindowSize(window, &w, &h);
-    for (const auto &to_draw :
-         ecs.Step(current_frame, spawn_interval, spawn_interval)) {
-      draw_circle(renderer, to_draw.x, to_draw.y, to_draw.radius, to_draw.color,
-                  w, h);
+    for (const auto &to_draw : ecs.Step(current_frame, spawn_rate, 16)) {
+      if (render)
+        draw_circle(renderer, to_draw.x, to_draw.y, to_draw.radius,
+                    to_draw.color, w, h);
     }
     entity_count = std::max(entity_count, ecs.size());
-    SDL_RenderPresent(renderer);
+    if (render) SDL_RenderPresent(renderer);
     ++current_frame;
     ++frames;
 

@@ -10,6 +10,8 @@
 // That is the reason for one header file and systems just built into the
 // ECS struct.
 
+const float TWO_PI = 2.0f * std::acosf(-1);
+
 struct Color {
   uint8_t r;
   uint8_t g;
@@ -139,14 +141,14 @@ class ECS {
     }
   }
 
-  std::vector<ToDraw> Step(int32_t current_frame, int32_t spawn_interval,
+  std::vector<ToDraw> Step(int32_t current_frame, float spawn_rate,
                            int32_t explosion_particles) {
     RunDeathSystem(current_frame);
     RunExplodesSystem(current_frame);
     RunFadeSystem();
     RunMoveSystem();
     RunGravitySystem();
-    RunSpawnSystem(current_frame, spawn_interval, explosion_particles);
+    RunSpawnSystem(current_frame, spawn_rate, explosion_particles);
     Refresh();
     return RunGraphicsSystem();
   }
@@ -180,11 +182,11 @@ class ECS {
     return nullptr;
   }
 
-  void RunSpawnSystem(int32_t current_frame, int32_t spawn_interval,
+  void RunSpawnSystem(int32_t current_frame, float spawn_rate,
                       int32_t explosion_particles) {
-    if (current_frame % spawn_interval == 0) {
+    auto spawn_entity = [&]() -> bool {
       Entity* e = AddEntity();
-      if (e == nullptr) return;
+      if (e == nullptr) return false;
 
       int32_t id = e->id;
       float rise_speed =
@@ -212,6 +214,15 @@ class ECS {
                                 .hasGraphics = true,
                                 .hasPosition = true,
                                 .hasVelocity = true});
+      return true;
+    };
+    int guaranteed_spawns = static_cast<int>(spawn_rate);
+    for (int i = 0; i < guaranteed_spawns; ++i) {
+      if (!spawn_entity()) return;
+    }
+    float rand_spawn = std::uniform_real_distribution<float>(0.0, 1.0)(rng_);
+    if (rand_spawn < spawn_rate - guaranteed_spawns) {
+      if (!spawn_entity()) return;
     }
   }
 
@@ -247,7 +258,6 @@ class ECS {
       if (!e.IsAlive() && e.Matches(sig)) {
         CompPosition pos = position_[e.id];
         Color color = graphics_[e.id].color;
-        // CompExplodes particles = explodes_[e.id].num_particles;
         Entity* flash = AddEntity();
         if (flash == nullptr) return;
 
@@ -286,7 +296,55 @@ class ECS {
             .hasGraphics = true,
             .hasPosition = true,
         });
-        // TODO: actually spawn particles.
+
+        int32_t num_particles = explodes_[e.id].num_particles;
+        std::vector<Entity*> particles;
+        particles.reserve(num_particles);
+        for (int i = 0; i < num_particles; ++i) {
+          Entity* particle = AddEntity();
+          if (particle == nullptr) break;
+          particles.push_back(particle);
+        }
+
+        f.r_rate >>= 2;
+        f.g_rate >>= 2;
+        f.b_rate >>= 2;
+        f.a_rate >>= 1;
+
+        const int generated_particles = particles.size();
+        float chunk_size = (TWO_PI / generated_particles);
+        const float vel_scale = 0.01;
+        for (int i = 0; i < generated_particles; ++i) {
+          Entity* particle = particles[i];
+          float min = i * chunk_size;
+          float max = (i + 1) * chunk_size;
+          float direction =
+              std::uniform_real_distribution<float>(min, max)(rng_);
+          float unit_dx = std::cosf(direction);
+          float unit_dy = std::sinf(direction);
+
+          position_[particle->id] = pos;
+          velocity_[particle->id] = {.dx = unit_dx * vel_scale,
+                                     .dy = unit_dy * vel_scale};
+          graphics_[particle->id] = {
+              .color = color,
+              .radius = 0.015f / frame_scale,
+          };
+          fades_[particle->id] = f;
+          death_time_[particle->id] = {
+              .dead_frame = current_frame +
+                            static_cast<int>(1.5f * life_in_frames) +
+                            std::uniform_int_distribution<int>(0, 10)(rng_)};
+          particle->signiture = Signiture({
+              .isAlive = true,
+              .hasDeathTime = true,
+              .hasFades = true,
+              .hasGraphics = true,
+              .hasPosition = true,
+              .hasVelocity = true,
+              .feelsGravity = true,
+          });
+        }
       }
     }
   }
@@ -298,7 +356,7 @@ class ECS {
       if (e.Matches(sig)) {
         CompVelocity& v = velocity_[e.id];
         // TODO: Tune the gravity constant.
-        v.dy -= 0.003;
+        v.dy -= 0.0003;
       }
     }
   }
