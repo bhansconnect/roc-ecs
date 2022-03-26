@@ -61,6 +61,7 @@ int main() {
   ECS ecs(max_entities);
   int h, w;
   int32_t frames = 0, current_frame = 0, spawn_interval = 15;
+  int32_t entity_count = 0;
   Uint32 last_print = SDL_GetTicks();
   while (true) {
     Uint64 start = SDL_GetPerformanceCounter();
@@ -98,12 +99,15 @@ int main() {
       draw_circle(renderer, to_draw.x, to_draw.y, to_draw.radius, to_draw.color,
                   w, h);
     }
+    entity_count = std::max(entity_count, ecs.size());
     SDL_RenderPresent(renderer);
     ++current_frame;
     ++frames;
 
     if (SDL_GetTicks() - last_print > 1000) {
-      std::cout << "Current FPS: " << std::to_string(frames) << '\n';
+      std::cout << "Current FPS: " << std::to_string(frames) << "\t\t";
+      std::cout << "Max Entities: " << std::to_string(entity_count) << '\n';
+      entity_count = 0;
       frames = 0;
       last_print = SDL_GetTicks();
     }

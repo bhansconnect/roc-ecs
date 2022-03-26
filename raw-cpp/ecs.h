@@ -151,6 +151,8 @@ class ECS {
     return RunGraphicsSystem();
   }
 
+  int32_t size() { return size_; }
+
  private:
   // This actually adds all of the new entities into the active list.
   // It also remove old dead entites.
@@ -158,8 +160,8 @@ class ECS {
     int32_t i = 0;
     int32_t j = new_size_ - 1;
     while (i <= j) {
-      while (entities_[i].IsAlive()) ++i;
-      if (i >= j) break;
+      while (i < max_ && entities_[i].IsAlive()) ++i;
+      if (i == max_ || i >= j) break;
       while (!entities_[j].IsAlive()) --j;
       if (i >= j) break;
       std::swap(entities_[i], entities_[j]);
