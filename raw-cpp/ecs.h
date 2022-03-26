@@ -170,6 +170,9 @@ class ECS {
     }
     size_ = i;
     new_size_ = i;
+    // Having entities sorted seems to have no difference on performance.
+    // std::sort(entities_.begin(), entities_.begin() + size_,
+    //                    [](Entity a, Entity b) { return a.id < b.id; });
   }
 
   Entity* AddEntity() {
