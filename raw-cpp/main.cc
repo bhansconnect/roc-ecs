@@ -5,12 +5,15 @@
 #include "SDL.h"
 #include "ecs.h"
 
+constexpr int WIDTH = 800;
+constexpr int HEIGHT = 600;
+
 void draw_circle(SDL_Renderer *renderer, float raw_center_x, float raw_center_y,
-                 float raw_radius, Color color, int width, int height) {
-  int center_x = std::round(raw_center_x * width);
-  int center_y = std::round((1.0 - raw_center_y) * height);
+                 float raw_radius, Color color) {
+  int center_x = std::round(raw_center_x * WIDTH);
+  int center_y = std::round((1.0 - raw_center_y) * HEIGHT);
   int radius = std::max(
-      static_cast<int>(std::round(raw_radius * (height + width) / 2.0)), 1);
+      static_cast<int>(std::round(raw_radius * (HEIGHT + WIDTH) / 2.0)), 1);
 
   // Setting the color to be RED with 100% opaque (0% trasparent).
   SDL_SetRenderDrawColor(renderer, color.r, color.g, color.b, color.a);
@@ -18,10 +21,10 @@ void draw_circle(SDL_Renderer *renderer, float raw_center_x, float raw_center_y,
   // Drawing circle
   int r2 = radius * radius;
   for (int x = std::max(center_x - radius, 0);
-       x <= std::min(center_x + radius, width); ++x) {
+       x <= std::min(center_x + radius, WIDTH); ++x) {
     int x2 = (center_x - x) * (center_x - x);
     for (int y = std::max(center_y - radius, 0);
-         y <= std::min(center_y + radius, height); ++y) {
+         y <= std::min(center_y + radius, HEIGHT); ++y) {
       int y2 = (center_y - y) * (center_y - y);
       if (y2 + x2 <= r2) {
         SDL_RenderDrawPoint(renderer, x, y);
@@ -42,7 +45,7 @@ int main() {
   }
 
   window = SDL_CreateWindow("ecs-test", SDL_WINDOWPOS_UNDEFINED,
-                            SDL_WINDOWPOS_UNDEFINED, 800, 600, 0);
+                            SDL_WINDOWPOS_UNDEFINED, WIDTH, HEIGHT, 0);
   if (window == nullptr) {
     SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Couldn't create window: %s",
                  SDL_GetError());
@@ -59,7 +62,6 @@ int main() {
 
   int max_entities = 512;
   ECS ecs(max_entities);
-  int h, w;
   int32_t frames = 0, current_frame = 0;
   int32_t entity_count = 0;
   float spawn_rate = 1.0f / 15.0f;
@@ -97,13 +99,12 @@ int main() {
       }
     }
     SDL_SetRenderDrawColor(renderer, 0x00, 0x00, 0x00, 0x00);
-    SDL_GetWindowSize(window, &w, &h);
     auto particles = ecs.Step(current_frame, spawn_rate, 16);
     if (render) {
       SDL_RenderClear(renderer);
       for (const auto &to_draw : particles) {
         draw_circle(renderer, to_draw.x, to_draw.y, to_draw.radius,
-                    to_draw.color, w, h);
+                    to_draw.color);
       }
       SDL_RenderPresent(renderer);
     }
