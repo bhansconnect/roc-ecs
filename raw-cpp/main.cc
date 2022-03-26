@@ -97,15 +97,17 @@ int main() {
       }
     }
     SDL_SetRenderDrawColor(renderer, 0x00, 0x00, 0x00, 0x00);
-    if (render) SDL_RenderClear(renderer);
     SDL_GetWindowSize(window, &w, &h);
-    for (const auto &to_draw : ecs.Step(current_frame, spawn_rate, 16)) {
-      if (render)
+    auto particles = ecs.Step(current_frame, spawn_rate, 16);
+    if (render) {
+      SDL_RenderClear(renderer);
+      for (const auto &to_draw : particles) {
         draw_circle(renderer, to_draw.x, to_draw.y, to_draw.radius,
                     to_draw.color, w, h);
+      }
+      SDL_RenderPresent(renderer);
     }
     entity_count = std::max(entity_count, ecs.size());
-    if (render) SDL_RenderPresent(renderer);
     ++current_frame;
     ++frames;
 
