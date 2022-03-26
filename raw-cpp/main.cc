@@ -154,7 +154,10 @@ int main() {
     Uint64 end = SDL_GetPerformanceCounter();
     float elapsedMS =
         (end - start) / (float)SDL_GetPerformanceFrequency() * 1000.0f;
-    SDL_Delay(floor(1000.0 / 60.0 - elapsedMS));
+    float delay = floor(1000.0f / 60.0f - elapsedMS);
+    if (delay > 0) {
+      SDL_Delay(delay);
+    }
   }
 
   SDL_DestroyRenderer(renderer);
