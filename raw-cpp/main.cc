@@ -55,8 +55,10 @@ int main() {
                  SDL_GetError());
     return 3;
   }
+  SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_BLEND);
 
-  ECS ecs(100);
+  int max_entities = 128;
+  ECS ecs(max_entities);
   int h, w;
   int32_t frames = 0, current_frame = 0, spawn_interval = 15;
   Uint32 last_print = SDL_GetTicks();
@@ -66,6 +68,27 @@ int main() {
     SDL_PollEvent(&event);
     if (event.type == SDL_QUIT) {
       break;
+    } else if (event.type == SDL_KEYDOWN) {
+      switch (event.key.keysym.sym) {
+        case SDLK_LEFT:
+          max_entities = std::max(1, max_entities / 2);
+          std::cout << "Max Entities: " << max_entities << '\n';
+          ecs.SetMaxEntities(max_entities);
+          break;
+        case SDLK_RIGHT:
+          max_entities *= 2;
+          std::cout << "Max Entities: " << max_entities << '\n';
+          ecs.SetMaxEntities(max_entities);
+          break;
+        case SDLK_DOWN:
+          spawn_interval = std::max(1, spawn_interval - 1);
+          std::cout << "Spawn Interval: " << spawn_interval << '\n';
+          break;
+        case SDLK_UP:
+          ++spawn_interval;
+          std::cout << "Spawn Interval: " << spawn_interval << '\n';
+          break;
+      }
     }
     SDL_SetRenderDrawColor(renderer, 0x00, 0x00, 0x00, 0x00);
     SDL_RenderClear(renderer);

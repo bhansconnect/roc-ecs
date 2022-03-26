@@ -29,10 +29,14 @@ struct CompDeathTime {
 };
 
 struct CompFades {
-  int8_t color_rate;
-  int8_t color_min;
-  int8_t opacity_rate;
-  int8_t opacity_min;
+  uint8_t r_rate;
+  uint8_t r_min;
+  uint8_t g_rate;
+  uint8_t g_min;
+  uint8_t b_rate;
+  uint8_t b_min;
+  uint8_t a_rate;
+  uint8_t a_min;
 };
 
 struct CompExplodes {
@@ -138,8 +142,10 @@ class ECS {
   std::vector<ToDraw> Step(int32_t current_frame, int32_t spawn_interval,
                            int32_t explosion_particles) {
     RunDeathSystem(current_frame);
+    RunExplodesSystem(current_frame);
     RunFadeSystem();
     RunMoveSystem();
+    RunGravitySystem();
     RunSpawnSystem(current_frame, spawn_interval, explosion_particles);
     Refresh();
     return RunGraphicsSystem();
@@ -165,6 +171,7 @@ class ECS {
   Entity* AddEntity() {
     if (new_size_ < max_) {
       Entity* e = &entities_[new_size_];
+      e->signiture = Signiture();
       ++new_size_;
       return e;
     }
@@ -186,12 +193,13 @@ class ECS {
       death_time_[id] = {.dead_frame = current_frame + life_in_frames};
       explodes_[id] = {.num_particles = explosion_particles};
 
-      bool is_green = std::uniform_int_distribution<>(0, 1)(rng_);
-      graphics_[id] = {.color = {.r = 0,
-                                 .g = static_cast<uint8_t>(is_green ? 255 : 0),
-                                 .b = static_cast<uint8_t>(is_green ? 0 : 255),
-                                 .a = 255},
-                       .radius = 0.02};
+      int color = std::uniform_int_distribution<int>(0, 2)(rng_);
+      graphics_[id] = {
+          .color = {.r = static_cast<uint8_t>(color == 0 ? 255 : 0),
+                    .g = static_cast<uint8_t>(color == 1 ? 255 : 0),
+                    .b = static_cast<uint8_t>(color == 2 ? 255 : 0),
+                    .a = 255},
+          .radius = 0.02};
 
       float x = std::uniform_real_distribution<float>(0.05, 0.95)(rng_);
       position_[id] = {.x = x, .y = 0.0};
@@ -229,6 +237,70 @@ class ECS {
     }
   }
 
+  void RunExplodesSystem(int32_t current_frame) {
+    Signiture sig(
+        {.hasExplodes = true, .hasPosition = true, .hasGraphics = true});
+    for (int32_t i = 0; i < size_; ++i) {
+      Entity& e = entities_[i];
+      if (!e.IsAlive() && e.Matches(sig)) {
+        CompPosition pos = position_[e.id];
+        Color color = graphics_[e.id].color;
+        // CompExplodes particles = explodes_[e.id].num_particles;
+        Entity* flash = AddEntity();
+        if (flash == nullptr) return;
+
+        int32_t life_in_frames =
+            std::uniform_int_distribution<int>(10, 30)(rng_);
+        float frame_scale = (10.0f / life_in_frames);
+        death_time_[flash->id] = {.dead_frame = current_frame + life_in_frames};
+
+        CompFades f = {.a_min = 50,
+                       .a_rate = static_cast<uint8_t>(30.0f * frame_scale)};
+        if (color.r > color.g && color.a > color.b) {
+          f.g_min = 100;
+          f.g_rate = static_cast<uint8_t>(40.0f * frame_scale);
+          color = {.r = 255, .g = 255, .b = 0, .a = 255};
+        } else if (color.g > color.b) {
+          f.b_min = 100;
+          f.b_rate = static_cast<uint8_t>(40.0f * frame_scale);
+          color = {.r = 0, .g = 255, .b = 255, .a = 255};
+        } else {
+          f.r_min = 100;
+          f.r_rate = static_cast<uint8_t>(40.0f * frame_scale);
+          color = {.r = 255, .g = 0, .b = 255, .a = 255};
+        }
+        graphics_[flash->id] = {
+            .color = color,
+            .radius = 0.03f / frame_scale,
+        };
+
+        fades_[flash->id] = f;
+
+        position_[flash->id] = pos;
+        flash->signiture = Signiture({
+            .isAlive = true,
+            .hasDeathTime = true,
+            .hasFades = true,
+            .hasGraphics = true,
+            .hasPosition = true,
+        });
+        // TODO: actually spawn particles.
+      }
+    }
+  }
+
+  void RunGravitySystem() {
+    Signiture sig({.isAlive = true, .feelsGravity = true, .hasVelocity = true});
+    for (int32_t i = 0; i < size_; ++i) {
+      Entity& e = entities_[i];
+      if (e.Matches(sig)) {
+        CompVelocity& v = velocity_[e.id];
+        // TODO: Tune the gravity constant.
+        v.dy -= 0.003;
+      }
+    }
+  }
+
   void RunFadeSystem() {
     Signiture sig({.isAlive = true, .hasFades = true, .hasGraphics = true});
     for (int32_t i = 0; i < size_; ++i) {
@@ -237,12 +309,12 @@ class ECS {
         Color& color = graphics_[e.id].color;
         CompFades& f = fades_[e.id];
         auto updateColor = [](uint8_t& c, uint8_t min, uint8_t rate) {
-          c = std::max(min, static_cast<uint8_t>(std::min(c - rate, 0)));
+          c = std::max(c - rate, static_cast<int32_t>(min));
         };
-        updateColor(color.r, f.color_min, f.color_rate);
-        updateColor(color.g, f.color_min, f.color_rate);
-        updateColor(color.b, f.color_min, f.color_rate);
-        updateColor(color.a, f.opacity_min, f.opacity_rate);
+        updateColor(color.r, f.r_min, f.r_rate);
+        updateColor(color.g, f.g_min, f.g_rate);
+        updateColor(color.b, f.b_min, f.b_rate);
+        updateColor(color.a, f.a_min, f.a_rate);
       }
     }
   }
