@@ -10,7 +10,7 @@
 // That is the reason for one header file and systems just built into the
 // ECS struct.
 
-const float TWO_PI = 2.0f * std::acosf(-1);
+const float TWO_PI = 2.0f * std::acos(-1);
 
 struct Color {
   uint8_t b;
@@ -201,12 +201,14 @@ class ECS {
       explodes_[id] = {.num_particles = explosion_particles};
 
       int color = std::uniform_int_distribution<int>(0, 2)(rng_);
-      graphics_[id] = {
-          .color = {.r = static_cast<uint8_t>(color == 0 ? 255 : 0),
-                    .g = static_cast<uint8_t>(color == 1 ? 255 : 0),
-                    .b = static_cast<uint8_t>(color == 2 ? 255 : 0),
-                    .a = 255},
-          .radius = 0.02};
+      graphics_[id] = {.color =
+                           {
+                               .b = static_cast<uint8_t>(color == 2 ? 255 : 0),
+                               .g = static_cast<uint8_t>(color == 1 ? 255 : 0),
+                               .r = static_cast<uint8_t>(color == 0 ? 255 : 0),
+                               .a = 255,
+                           },
+                       .radius = 0.02};
 
       float x = std::uniform_real_distribution<float>(0.05, 0.95)(rng_);
       position_[id] = {.x = x, .y = 0.0};
@@ -255,7 +257,7 @@ class ECS {
 
   void RunExplodesSystem(int32_t current_frame) {
     Signiture sig(
-        {.hasExplodes = true, .hasPosition = true, .hasGraphics = true});
+        {.hasExplodes = true, .hasGraphics = true, .hasPosition = true});
     for (int32_t i = 0; i < size_; ++i) {
       Entity& e = entities_[i];
       if (!e.IsAlive() && e.Matches(sig)) {
@@ -269,20 +271,22 @@ class ECS {
         float frame_scale = (10.0f / life_in_frames);
         death_time_[flash->id] = {.dead_frame = current_frame + life_in_frames};
 
-        CompFades f = {.a_min = 50,
-                       .a_rate = static_cast<uint8_t>(30.0f * frame_scale)};
+        CompFades f = {
+            .a_rate = static_cast<uint8_t>(30.0f * frame_scale),
+            .a_min = 50,
+        };
         if (color.r > color.g && color.a > color.b) {
           f.g_min = 100;
           f.g_rate = static_cast<uint8_t>(40.0f * frame_scale);
-          color = {.r = 255, .g = 255, .b = 0, .a = 255};
+          color = {.b = 0, .g = 255, .r = 255, .a = 255};
         } else if (color.g > color.b) {
           f.b_min = 100;
           f.b_rate = static_cast<uint8_t>(40.0f * frame_scale);
-          color = {.r = 0, .g = 255, .b = 255, .a = 255};
+          color = {.b = 255, .g = 255, .r = 0, .a = 255};
         } else {
           f.r_min = 100;
           f.r_rate = static_cast<uint8_t>(40.0f * frame_scale);
-          color = {.r = 255, .g = 0, .b = 255, .a = 255};
+          color = {.b = 255, .g = 0, .r = 255, .a = 255};
         }
         graphics_[flash->id] = {
             .color = color,
@@ -323,8 +327,8 @@ class ECS {
           float max = (i + 1) * chunk_size;
           float direction =
               std::uniform_real_distribution<float>(min, max)(rng_);
-          float unit_dx = std::cosf(direction);
-          float unit_dy = std::sinf(direction);
+          float unit_dx = std::cos(direction);
+          float unit_dy = std::sin(direction);
 
           position_[particle->id] = pos;
           velocity_[particle->id] = {.dx = unit_dx * vel_scale,
@@ -353,7 +357,7 @@ class ECS {
   }
 
   void RunGravitySystem() {
-    Signiture sig({.isAlive = true, .feelsGravity = true, .hasVelocity = true});
+    Signiture sig({.isAlive = true, .hasVelocity = true, .feelsGravity = true});
     for (int32_t i = 0; i < size_; ++i) {
       Entity& e = entities_[i];
       if (e.Matches(sig)) {
