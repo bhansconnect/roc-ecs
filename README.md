@@ -23,18 +23,18 @@ The target example: Fireworks and explosions (though rendering will just be circ
 
 
 Tags
- - HasGravity -> If the entity is effected by gravity
+ - FeelsGravity -> If the entity is effected by gravity
 
 Components
  - DeathTime -> frame that this entity dies
- - Fades -> if the entitiy fades as it loses life (store the rate of fade) and min possible value.
- - Explodes -> stores the number of particles it spawns and the base color
+ - Fades -> the minimum and rate of fading for each color component
+ - Explodes -> number of particles to generate
  - Graphics -> color and radius of the entity
  - Position -> x y
  - Velocity -> dx dy
 
 Systems
- - Spawn -> creates a firework every n frames
+ - Spawn -> creates a firework based on the current spawn rate
  - Death -> Marks entities dead 
  - Explosion -> spawns explosion particles for newly dead entities
  - Fade -> updates the color based on rates.
