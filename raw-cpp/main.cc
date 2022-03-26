@@ -90,32 +90,36 @@ int main() {
   while (true) {
     Uint64 start = SDL_GetPerformanceCounter();
 
-    SDL_PollEvent(&event);
-    if (event.type == SDL_QUIT) {
-      break;
-    } else if (event.type == SDL_KEYDOWN) {
-      switch (event.key.keysym.sym) {
-        case SDLK_LEFT:
-          max_entities = std::max(1, max_entities / 2);
-          std::cout << "Max Entities: " << max_entities << '\n';
-          ecs.SetMaxEntities(max_entities);
-          break;
-        case SDLK_RIGHT:
-          max_entities *= 2;
-          std::cout << "Max Entities: " << max_entities << '\n';
-          ecs.SetMaxEntities(max_entities);
-          break;
-        case SDLK_DOWN:
-          spawn_rate *= 1.0f / 1.1f;
-          std::cout << "Spawn Rate: " << spawn_rate << '\n';
-          break;
-        case SDLK_UP:
-          spawn_rate *= 1.1f;
-          std::cout << "Spawn Rate: " << spawn_rate << '\n';
-          break;
-        case SDLK_x:
-          render = !render;
-          break;
+    bool has_events = SDL_PollEvent(&event);
+    if (has_events) {
+      if (event.type == SDL_QUIT) {
+        break;
+      } else if (event.type == SDL_KEYDOWN && event.key.repeat == 0) {
+        switch (event.key.keysym.sym) {
+          case SDLK_LEFT:
+            max_entities = std::max(1, max_entities / 2);
+            std::cout << "Max Entities: " << max_entities << '\n';
+            ecs.SetMaxEntities(max_entities);
+            break;
+          case SDLK_RIGHT:
+            max_entities *= 2;
+            std::cout << "Max Entities: " << max_entities << '\n';
+            ecs.SetMaxEntities(max_entities);
+            break;
+          case SDLK_DOWN:
+            spawn_rate *= 1.0f / 1.1f;
+            std::cout << "Spawn Rate: " << spawn_rate << '\n';
+            break;
+          case SDLK_UP:
+            spawn_rate *= 1.1f;
+            std::cout << "Spawn Rate: " << spawn_rate << '\n';
+            break;
+          case SDLK_x:
+            render = !render;
+            break;
+          default:
+            break;
+        }
       }
     }
     SDL_SetRenderDrawColor(renderer, 0x00, 0x00, 0x00, 0x00);
