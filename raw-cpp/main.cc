@@ -17,9 +17,9 @@ void draw_circle(Color *pixels, float raw_center_x, float raw_center_y,
       static_cast<int>(std::round(raw_radius * (HEIGHT + WIDTH) / 2.0)), 1);
 
   uint8_t new_a_flip = (255 - color.a);
-  auto new_ra = color.r * color.a;
-  auto new_ga = color.g * color.a;
-  auto new_ba = color.b * color.a;
+  uint16_t new_ra = static_cast<uint16_t>(color.r * color.a) / 255;
+  uint16_t new_ga = static_cast<uint16_t>(color.g * color.a) / 255;
+  uint16_t new_ba = static_cast<uint16_t>(color.b * color.a) / 255;
 
   int r2 = radius * radius;
   for (int x = std::max(center_x - radius, 0);
@@ -32,16 +32,13 @@ void draw_circle(Color *pixels, float raw_center_x, float raw_center_y,
         Color &pixel_color = pixels[x + WIDTH * y];
 
         Color new_color;
-        new_color.a = color.a + (pixel_color.a * new_a_flip / 255);
+        new_color.a = 255;
         new_color.r =
-            (new_ra + pixel_color.r * pixel_color.a * new_a_flip / 255) /
-            new_color.a;
+            new_ra + static_cast<uint16_t>(pixel_color.r * new_a_flip) / 255;
         new_color.g =
-            (new_ga + pixel_color.g * pixel_color.a * new_a_flip / 255) /
-            new_color.a;
+            new_ga + static_cast<uint16_t>(pixel_color.g * new_a_flip) / 255;
         new_color.b =
-            (new_ba + pixel_color.b * pixel_color.a * new_a_flip / 255) /
-            new_color.a;
+            new_ba + static_cast<uint16_t>(pixel_color.b * new_a_flip) / 255;
         pixel_color = new_color;
       }
     }
@@ -74,7 +71,6 @@ int main() {
                  SDL_GetError());
     return 3;
   }
-  SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_BLEND);
 
   texture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_ARGB8888,
                               SDL_TEXTUREACCESS_STREAMING, WIDTH, HEIGHT);
@@ -83,9 +79,7 @@ int main() {
                  SDL_GetError());
     return 3;
   }
-  SDL_SetTextureBlendMode(texture, SDL_BLENDMODE_BLEND);
 
-  // std::array<Color, WIDTH * HEIGHT> pixels;
   int max_entities = 512;
   ECS ecs(max_entities);
   int32_t frames = 0, current_frame = 0;
