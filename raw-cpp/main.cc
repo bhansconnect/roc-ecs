@@ -10,6 +10,9 @@ const char *NAME = "simple-ecs-test";
 #elif defined(ACTON_ECS)
 #include "acton-inspired-ecs.h"
 const char *NAME = "acton-ecs-test";
+#elif defined(ROC_ECS)
+#include "roc-ecs-platform.h"
+const char *NAME = "roc-ecs-test";
 #endif
 
 constexpr int WIDTH = 800;

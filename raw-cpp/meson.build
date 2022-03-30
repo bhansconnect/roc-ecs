@@ -38,3 +38,15 @@ executable(
     ]
 )
 
+executable(
+    'roc-ecs-test',
+    'main.cc',
+    dependencies: [
+        sdl2_dep,
+        pcg_dep,
+    ],
+    cpp_args: [
+        '-DROC_ECS'
+    ]
+)
+
