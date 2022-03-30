@@ -1,9 +1,25 @@
 platform "roc-ecs-test"
-    requires {} { init : {} -> _ }
+    requires {} { dummy: {} }
     exposes []
     packages {}
-    imports []
-    provides [ initForHost ]
+    imports [ Random ]
+    provides [ dummyForHost, initForHost, stepForHost ]
 
-initForHost : {} -> _
-initForHost = \_ -> init {}
+dummyForHost = dummy
+
+Model : {
+    rng: Random.State U32,
+}
+
+initForHost : U32 -> Model
+initForHost = \seed ->
+    {
+        rng: Random.seed32 seed,
+    }
+
+
+stepForHost : Model -> U32
+stepForHost = \{rng} ->
+    dist = (Random.u32 0 128)
+    next = dist rng
+    next.value

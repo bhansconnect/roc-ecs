@@ -1,7 +1,9 @@
 app "roc-simple-ecs"
     packages { pf: "." }
     imports []
-    provides [ init ] to pf
+    provides [ dummy ] to pf
 
-init : {} -> I64
-init = \_ -> 12
+# This is just a dummy.
+# Everything is defined in Package-Config because we can't require multiple functions.
+
+dummy = {}
