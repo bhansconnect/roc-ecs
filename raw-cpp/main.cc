@@ -6,13 +6,10 @@
 #include "SDL.h"
 #if defined(SIMPLE_ECS)
 #include "simple-ecs.h"
-const char *NAME = "simple-ecs-test";
+const char *NAME = "simple-ecs";
 #elif defined(ACTON_ECS)
 #include "acton-inspired-ecs.h"
-const char *NAME = "acton-ecs-test";
-#elif defined(ROC_ECS)
-#include "roc-ecs-platform.h"
-const char *NAME = "roc-ecs-test";
+const char *NAME = "acton-ecs";
 #endif
 
 constexpr int WIDTH = 800;
