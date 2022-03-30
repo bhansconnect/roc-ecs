@@ -5,7 +5,7 @@
 
 #include "SDL.h"
 // #include "acton-inspired-ecs.h"
-#include "ecs.h"
+#include "simple-ecs.h"
 
 constexpr int WIDTH = 800;
 constexpr int HEIGHT = 600;
