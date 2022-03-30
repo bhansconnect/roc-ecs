@@ -4,8 +4,13 @@
 #include <iostream>
 
 #include "SDL.h"
-// #include "acton-inspired-ecs.h"
+#if defined(SIMPLE_ECS)
 #include "simple-ecs.h"
+const char *NAME = "simple-ecs-test";
+#elif defined(ACTON_ECS)
+#include "acton-inspired-ecs.h"
+const char *NAME = "acton-ecs-test";
+#endif
 
 constexpr int WIDTH = 800;
 constexpr int HEIGHT = 600;
@@ -58,7 +63,7 @@ int main() {
     return 3;
   }
 
-  window = SDL_CreateWindow("ecs-test", SDL_WINDOWPOS_UNDEFINED,
+  window = SDL_CreateWindow(NAME, SDL_WINDOWPOS_UNDEFINED,
                             SDL_WINDOWPOS_UNDEFINED, WIDTH, HEIGHT, 0);
   if (window == nullptr) {
     SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Couldn't create window: %s",

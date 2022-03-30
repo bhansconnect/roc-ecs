@@ -15,11 +15,26 @@ pcg_proj = subproject('pcg')
 pcg_dep = pcg_proj.get_variable('pcg_cpp_dep')
 
 executable(
-    'ecs-test',
+    'simple-ecs-test',
     'main.cc',
     dependencies: [
         sdl2_dep,
         pcg_dep,
+    ],
+    cpp_args: [
+        '-DSIMPLE_ECS'
+    ]
+)
+
+executable(
+    'acton-ecs-test',
+    'main.cc',
+    dependencies: [
+        sdl2_dep,
+        pcg_dep,
+    ],
+    cpp_args: [
+        '-DACTON_ECS'
     ]
 )
 
