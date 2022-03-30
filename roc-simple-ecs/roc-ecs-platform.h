@@ -2,6 +2,30 @@
 #include <iostream>
 #include <random>
 
+extern "C" {
+void* roc_alloc(size_t size, unsigned int alignment) { return malloc(size); }
+
+void* roc_realloc(void* ptr, size_t new_size, size_t old_size,
+                  unsigned int alignment) {
+  return realloc(ptr, new_size);
+}
+
+void roc_dealloc(void* ptr, unsigned int alignment) { free(ptr); }
+
+void roc_panic(void* ptr, unsigned int alignment) {
+  char* msg = (char*)ptr;
+  fprintf(stderr,
+          "Application crashed with message\n\n    %s\n\nShutting down\n", msg);
+  exit(0);
+}
+
+void* roc_memcpy(void* dest, const void* src, size_t n) {
+  return memcpy(dest, src, n);
+}
+
+void* roc_memset(void* str, int c, size_t n) { return memset(str, c, n); }
+}
+
 struct Color {
   uint8_t b;
   uint8_t g;
@@ -16,17 +40,40 @@ struct ToDraw {
   float y;
 };
 
+struct RandConstants32 {
+  uint32_t permuteMultiplier;
+  uint32_t permuteRandomXorShift;
+  uint32_t permuteRandomXorShiftIncrement;
+  uint32_t permuteXorShift;
+  uint32_t updateIncrement;
+  uint32_t updateMultiplier;
+};
+
+struct RandState32 {
+  RandConstants32 c;
+  uint32_t s;
+};
+
+struct RocModel {
+  RandState32 rng;
+};
+
 extern "C" {
-void roc__initForHost_1_exposed_generic(int64_t& x);
+void roc__initForHost_1_exposed_generic(uint32_t seed, RocModel& x);
+void roc__stepForHost_1_exposed_generic(
+    // int32_t current_frame, float spawn_rate,
+    // int32_t explosion_particles,
+    RocModel& x, uint32_t& rand);
 }
 
 class ECS {
  public:
   explicit ECS(int32_t max) {
     // TODO: call roc main store closures and model.
-    int64_t x = 0;
-    roc__initForHost_1_exposed_generic(x);
-    std::cout << "X: " << x << '\n';
+    uint32_t seed = std::random_device{}();
+    roc__initForHost_1_exposed_generic(seed, model_);
+    std::cout << "S: " << model_.rng.s << '\n';
+    std::cout << "UI: " << model_.rng.c.updateIncrement << '\n';
   }
 
   // This will clear all current entities.
@@ -37,6 +84,9 @@ class ECS {
   std::vector<ToDraw> Step(int32_t current_frame, float spawn_rate,
                            int32_t explosion_particles) {
     // TODO: call roc closure to run all closures.
+    uint32_t rand;
+    roc__stepForHost_1_exposed_generic(model_, rand);
+    std::cout << "rand: " << rand << '\n';
     return {};
   }
 
@@ -44,4 +94,7 @@ class ECS {
     // TODO: call roc closure to get size.
     return {};
   }
+
+ private:
+  RocModel model_;
 };
