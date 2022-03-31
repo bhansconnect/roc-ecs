@@ -65,6 +65,8 @@ struct StepReturn {
 
 extern "C" {
 void roc__initForHost_1_exposed_generic(uint32_t seed, RocModel* x);
+// Roc expects this to be passed by value and thus as a chain of uint32_t
+// because it does not properly support c-abi.
 void roc__stepForHost_1_exposed_generic(
     // int32_t current_frame, float spawn_rate,
     // int32_t explosion_particles,
