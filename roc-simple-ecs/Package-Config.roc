@@ -18,8 +18,8 @@ initForHost = \seed ->
     }
 
 
-stepForHost : Model -> U32
-stepForHost = \{rng} ->
+stepForHost : Model -> { state: U32, value: U32 }
+stepForHost = \model ->
     dist = (Random.u32 0 128)
-    next = dist rng
-    next.value
+    next = dist model.rng
+    { value: next.value, state: Random.extract32 next.state }

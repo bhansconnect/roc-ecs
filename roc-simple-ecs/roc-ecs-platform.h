@@ -58,12 +58,19 @@ struct RocModel {
   RandState32 rng;
 };
 
+struct StepReturn {
+  uint32_t state;
+  uint32_t value;
+};
+
 extern "C" {
-void roc__initForHost_1_exposed_generic(uint32_t seed, RocModel& x);
+void roc__initForHost_1_exposed_generic(uint32_t seed, RocModel* x);
 void roc__stepForHost_1_exposed_generic(
     // int32_t current_frame, float spawn_rate,
     // int32_t explosion_particles,
-    RocModel& x, uint32_t& rand);
+    // RocModel model,
+    uint32_t pM, uint32_t pRXS, uint32_t pRXSI, uint32_t pXS, uint32_t uI,
+    uint32_t uM, uint32_t s, StepReturn* out);
 }
 
 class ECS {
@@ -71,9 +78,8 @@ class ECS {
   explicit ECS(int32_t max) {
     // TODO: call roc main store closures and model.
     uint32_t seed = std::random_device{}();
-    roc__initForHost_1_exposed_generic(seed, model_);
+    roc__initForHost_1_exposed_generic(seed, &model_);
     std::cout << "S: " << model_.rng.s << '\n';
-    std::cout << "UI: " << model_.rng.c.updateIncrement << '\n';
   }
 
   // This will clear all current entities.
@@ -84,9 +90,14 @@ class ECS {
   std::vector<ToDraw> Step(int32_t current_frame, float spawn_rate,
                            int32_t explosion_particles) {
     // TODO: call roc closure to run all closures.
-    uint32_t rand;
-    roc__stepForHost_1_exposed_generic(model_, rand);
-    std::cout << "rand: " << rand << '\n';
+    StepReturn next;
+    roc__stepForHost_1_exposed_generic(
+        model_.rng.c.permuteMultiplier, model_.rng.c.permuteRandomXorShift,
+        model_.rng.c.permuteRandomXorShiftIncrement,
+        model_.rng.c.permuteXorShift, model_.rng.c.updateIncrement,
+        model_.rng.c.updateMultiplier, model_.rng.s, &next);
+    model_.rng.s = next.state;
+    std::cout << "rand: " << next.value << '\n';
     return {};
   }
 

@@ -22,6 +22,7 @@ interface Random
         u8,
         u16,
         u32,
+        extract32,
     ]
     imports []
 
@@ -44,6 +45,8 @@ AlgorithmConstants uint : {
     updateIncrement : uint,
     updateMultiplier : uint }
 
+extract32: State U32 -> U32
+extract32 = \$State {s} -> s
 
 ## # [State] constructors
 
