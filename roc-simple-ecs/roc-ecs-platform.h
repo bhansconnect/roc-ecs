@@ -32,12 +32,48 @@ struct Color {
   uint8_t r;
   uint8_t a;
 };
+std::ostream& operator<<(std::ostream& os, const Color& c) {
+  return os << "{ b: " << (int)c.b << ", g: " << (int)c.g << ", r: " << (int)c.r
+            << ", a: " << (int)c.a << " }";
+}
 
 struct ToDraw {
-  Color color;
   float radius;
   float x;
   float y;
+  Color color;
+};
+std::ostream& operator<<(std::ostream& os, const ToDraw& td) {
+  return os << "{ color: " << td.color << ", radius: " << td.radius
+            << ", x: " << td.x << ", y: " << td.y << " }";
+}
+
+template <typename T>
+struct RocList {
+  T* elements;
+  size_t length;
+
+  ~RocList() {
+    if (length > 0) {
+      ssize_t* rc = refcount_ptr();
+      if (*rc == std::numeric_limits<ssize_t>::min()) {
+        // Note: this may be wrong based off of the element alignment.
+        // But looks to be correct for our current use case.
+        std::cout << "freeing data\n";
+        free(rc);
+      } else if (*rc < 0) {
+        *rc -= 1;
+      }
+    }
+  }
+
+  constexpr T operator[](size_t i) const noexcept { return *(elements + i); }
+  constexpr T* begin() const noexcept { return elements; }
+  constexpr T* end() const noexcept { return elements + length; }
+
+  ssize_t* refcount_ptr() const {
+    return reinterpret_cast<ssize_t*>(elements) - 1;
+  }
 };
 
 struct RandConstants32 {
@@ -60,15 +96,15 @@ struct RocModel {
 
 struct StepReturn {
   RocModel* model;
-  uint32_t value;
+  RocList<ToDraw> to_draw;
 };
 
 extern "C" {
 RocModel* roc__initForHost_1_exposed(uint32_t seed);
 // Roc expects this to be passed by value and thus as a chain of uint32_t
 // because it does not properly support c-abi.
-StepReturn roc__stepForHost_1_exposed(
-    RocModel* model
+void roc__stepForHost_1_exposed_generic(
+    RocModel* model, StepReturn& ret
     // int32_t current_frame, float spawn_rate,
     // int32_t explosion_particles,
 );
@@ -88,13 +124,13 @@ class ECS {
     // TODO: call roc closure to resize.
   }
 
-  std::vector<ToDraw> Step(int32_t current_frame, float spawn_rate,
-                           int32_t explosion_particles) {
+  RocList<ToDraw> Step(int32_t current_frame, float spawn_rate,
+                       int32_t explosion_particles) {
     // TODO: call roc closure to run all closures.
-    StepReturn ret = roc__stepForHost_1_exposed(model_);
+    StepReturn ret;
+    roc__stepForHost_1_exposed_generic(model_, ret);
     model_ = ret.model;
-    std::cout << "rand: " << ret.value << '\n';
-    return {};
+    return std::move(ret.to_draw);
   }
 
   int32_t size() {

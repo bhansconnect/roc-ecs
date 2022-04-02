@@ -7,6 +7,21 @@ platform "roc-ecs-test"
 
 dummyForHost = dummy
 
+# Names are weird here cause we need to match SDL ordering.
+Color : {
+    aB: U8,
+    bG: U8,
+    cR: U8,
+    dA: U8,
+}
+
+ToDraw : {
+    color: Color,
+    radius: F32,
+    x: F32,
+    y: F32,
+}
+
 Model : {
     rng: Random.State U32,
 }
@@ -18,11 +33,6 @@ initForHost = \seed ->
     }
 
 
-stepForHost : Box Model -> { model: Box Model, value: U32 }
+stepForHost : Box Model -> { model: Box Model, toDraw: List ToDraw }
 stepForHost = \boxModel ->
-    model = Box.unbox boxModel
-    dist = (Random.u32 0 128)
-    rand = dist model.rng
-    nextModel = {model & rng: rand.state}
-    nextBoxModel = Box.box nextModel
-    {model: nextBoxModel, value: rand.value}
+    {model: boxModel, toDraw: [ { color: { aB: 255, bG: 0, cR: 0, dA: 255 }, radius: 0.04, x: 0.5, y: 0.5 } ]}
