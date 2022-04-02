@@ -67,7 +67,6 @@ class RocList {
       if (*rc == std::numeric_limits<ssize_t>::min()) {
         // Note: this may be wrong based off of the element alignment.
         // But looks to be correct for our current use case.
-        std::cout << "freeing data\n";
         free(rc);
       } else if (*rc < 0) {
         *rc -= 1;
@@ -130,7 +129,6 @@ class ECS {
     // TODO: call roc main store closures and model.
     uint32_t seed = std::random_device{}();
     model_ = roc__initForHost_1_exposed(seed);
-    std::cout << "S: " << model_->rng.s << '\n';
   }
 
   // This will clear all current entities.
@@ -141,7 +139,6 @@ class ECS {
   RocList<ToDraw> Step(int32_t current_frame, float spawn_rate,
                        int32_t explosion_particles) {
     // TODO: call roc closure to run all closures.
-    std::cout << "calling step\n";
     StepReturn ret;
     roc__stepForHost_1_exposed_generic(model_, ret);
     model_ = ret.model;
