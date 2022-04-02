@@ -52,7 +52,12 @@ template <typename T>
 class RocList {
  public:
   RocList() {}
-  RocList(RocList&& old) = default;
+  RocList(RocList&& old) {
+    elements_ = old.elements_;
+    size_ = old.size_;
+    old.elements_ = nullptr;
+    old.size_ = 0;
+  }
   // Remove copy construtor, it has refcount implications.
   RocList(const RocList&) = delete;
 
