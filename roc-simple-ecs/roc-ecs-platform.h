@@ -136,6 +136,7 @@ class ECS {
   RocList<ToDraw> Step(int32_t current_frame, float spawn_rate,
                        int32_t explosion_particles) {
     // TODO: call roc closure to run all closures.
+    std::cout << "calling step\n";
     StepReturn ret;
     roc__stepForHost_1_exposed_generic(model_, ret);
     model_ = ret.model;

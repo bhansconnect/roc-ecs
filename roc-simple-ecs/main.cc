@@ -125,12 +125,14 @@ int main() {
     }
     SDL_SetRenderDrawColor(renderer, 0x00, 0x00, 0x00, 0x00);
     auto particles = ecs.Step(current_frame, spawn_rate, 16);
+    std::cout << "size: " << particles.size() << '\n';
     if (render) {
       void *pixels = nullptr;
       int pitch;
       SDL_LockTexture(texture, NULL, &pixels, &pitch);
       memset(pixels, 0, WIDTH * HEIGHT * sizeof(Uint32));
       for (const auto &to_draw : particles) {
+        std::cout << "drawing: " << to_draw << '\n';
         draw_circle(reinterpret_cast<Color *>(pixels), to_draw.x, to_draw.y,
                     to_draw.radius, to_draw.color);
       }
