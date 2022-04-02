@@ -49,12 +49,15 @@ std::ostream& operator<<(std::ostream& os, const ToDraw& td) {
 }
 
 template <typename T>
-struct RocList {
-  T* elements;
-  size_t length;
+class RocList {
+ public:
+  RocList() {}
+  RocList(RocList&& old) = default;
+  // Remove copy construtor, it has refcount implications.
+  RocList(const RocList&) = delete;
 
   ~RocList() {
-    if (length > 0) {
+    if (size_ > 0) {
       ssize_t* rc = refcount_ptr();
       if (*rc == std::numeric_limits<ssize_t>::min()) {
         // Note: this may be wrong based off of the element alignment.
@@ -67,13 +70,19 @@ struct RocList {
     }
   }
 
-  constexpr T operator[](size_t i) const noexcept { return *(elements + i); }
-  constexpr T* begin() const noexcept { return elements; }
-  constexpr T* end() const noexcept { return elements + length; }
+  constexpr T operator[](size_t i) const noexcept { return *(elements_ + i); }
+  constexpr T* begin() const noexcept { return elements_; }
+  constexpr T* end() const noexcept { return elements_ + size_; }
 
+  size_t size() { return size_; }
+
+ private:
   ssize_t* refcount_ptr() const {
-    return reinterpret_cast<ssize_t*>(elements) - 1;
+    return reinterpret_cast<ssize_t*>(elements_) - 1;
   }
+
+  T* elements_ = nullptr;
+  size_t size_ = 0;
 };
 
 struct RandConstants32 {
