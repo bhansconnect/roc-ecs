@@ -46,6 +46,6 @@ sizeForHost = \boxModel ->
     model = Box.unbox boxModel
     model.size
 
-stepForHost : Box Model -> { model: Box Model, toDraw: List ToDraw }
-stepForHost = \boxModel ->
+stepForHost : Box Model, I32, F32, I32 -> { model: Box Model, toDraw: List ToDraw }
+stepForHost = \boxModel, _currentFrame, _spawnRate, _particles ->
     {model: boxModel, toDraw: [ { color: { aB: 255, bG: 0, cR: 0, dA: 255 }, radius: 0.04, x: 0.5, y: 0.5 } ]}

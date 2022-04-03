@@ -89,40 +89,23 @@ class RocList {
   size_t size_ = 0;
 };
 
-struct RandConstants32 {
-  uint32_t permuteMultiplier;
-  uint32_t permuteRandomXorShift;
-  uint32_t permuteRandomXorShiftIncrement;
-  uint32_t permuteXorShift;
-  uint32_t updateIncrement;
-  uint32_t updateMultiplier;
-};
-
-struct RandState32 {
-  RandConstants32 c;
-  uint32_t s;
-};
-
-struct RocModel {
-  RandState32 rng;
-};
+using RocModel = void*;
 
 struct StepReturn {
-  RocModel* model;
+  RocModel model;
   RocList<ToDraw> to_draw;
 };
 
 extern "C" {
-RocModel* roc__initForHost_1_exposed(uint32_t seed, int32_t max);
-RocModel* roc__setMaxForHost_1_exposed(RocModel* model, int32_t max);
-int32_t roc__sizeForHost_1_exposed(RocModel* model);
+RocModel roc__initForHost_1_exposed(uint32_t seed, int32_t max);
+RocModel roc__setMaxForHost_1_exposed(RocModel model, int32_t max);
+int32_t roc__sizeForHost_1_exposed(RocModel model);
 // Roc expects this to be passed by value and thus as a chain of uint32_t
 // because it does not properly support c-abi.
-void roc__stepForHost_1_exposed_generic(
-    RocModel* model, StepReturn& ret
-    // int32_t current_frame, float spawn_rate,
-    // int32_t explosion_particles,
-);
+void roc__stepForHost_1_exposed_generic(RocModel model, int32_t current_frame,
+                                        float spawn_rate,
+                                        int32_t explosion_particles,
+                                        StepReturn& ret);
 }
 
 class ECS {
@@ -140,7 +123,8 @@ class ECS {
   RocList<ToDraw> Step(int32_t current_frame, float spawn_rate,
                        int32_t explosion_particles) {
     StepReturn ret;
-    roc__stepForHost_1_exposed_generic(model_, ret);
+    roc__stepForHost_1_exposed_generic(model_, current_frame, spawn_rate,
+                                       explosion_particles, ret);
     model_ = ret.model;
     return std::move(ret.to_draw);
   }
@@ -148,5 +132,5 @@ class ECS {
   int32_t size() { return roc__sizeForHost_1_exposed(model_); }
 
  private:
-  RocModel* model_;
+  RocModel model_;
 };
