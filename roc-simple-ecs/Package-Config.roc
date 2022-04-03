@@ -285,6 +285,8 @@ spawnSystemHelper = \model0, currentFrame, spawnRate, numParticles, guaranteedSp
         else
             model1
 
+deathSystemSig = Signiture.empty |> Signiture.setAlive |> Signiture.setDeathTime
+
 deathSystem : Model, I32 -> Model
 deathSystem = \model, currentFrame ->
     deathSystemHelper model currentFrame 0
@@ -294,18 +296,21 @@ deathSystemHelper = \model, currentFrame, i ->
     if i < model.size then
         when List.get model.entities (Num.toNat i) is
             Ok { id, signiture } ->
-                when List.get model.deathTimes (Num.toNat id) is
-                    Ok { deadFrame } ->
-                        # TODO: maybe make this branchless for performance
-                        if currentFrame < deadFrame then
-                            deathSystemHelper model currentFrame (i + 1)
-                        else
-                            deadSigniture = Signiture.removeAlive signiture
-                            nextModel = { model & entities: List.set model.entities (Num.toNat i) { id, signiture: deadSigniture } }
-                            deathSystemHelper nextModel currentFrame (i + 1)
-                    Err OutOfBounds ->
-                        # This should be impossible
-                        deathSystemHelper model currentFrame (Num.minI32 - 1)
+                if Signiture.matches signiture deathSystemSig then
+                    when List.get model.deathTimes (Num.toNat id) is
+                        Ok { deadFrame } ->
+                            # TODO: maybe make this branchless for performance
+                            if currentFrame < deadFrame then
+                                deathSystemHelper model currentFrame (i + 1)
+                            else
+                                deadSigniture = Signiture.removeAlive signiture
+                                nextModel = { model & entities: List.set model.entities (Num.toNat i) { id, signiture: deadSigniture } }
+                                deathSystemHelper nextModel currentFrame (i + 1)
+                        Err OutOfBounds ->
+                            # This should be impossible
+                            deathSystemHelper model currentFrame (Num.minI32 - 1)
+                else
+                    deathSystemHelper model currentFrame (i + 1)
             Err OutOfBounds ->
                 # This should be impossible
                 deathSystemHelper model currentFrame (Num.minI32 - 1)
