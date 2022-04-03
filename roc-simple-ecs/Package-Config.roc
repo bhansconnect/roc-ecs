@@ -136,8 +136,53 @@ stepForHost = \boxModel, currentFrame, spawnRate, particles ->
     model0 = Box.unbox boxModel
     model1 = deathSystem model0 currentFrame
     model2 = spawnSystem model1 currentFrame spawnRate particles
-    toDraw = graphicsSystem model2
-    {model: Box.box model2, toDraw}
+    model3 = refresh model2
+    toDraw = graphicsSystem model3
+    {model: Box.box model3, toDraw}
+
+refresh : Model -> Model
+refresh = \model ->
+    refreshHelper model 0 (model.nextSize - 1)
+
+refreshHelper : Model, I32, I32 -> Model
+refreshHelper = \model, i, j ->
+    if i <= j then
+        nextI = refreshIncIHelper model i
+        if nextI == model.max || nextI >= j then
+            { model & size: nextI, nextSize: nextI}
+        else
+            nextJ = refreshDecJHelper model j
+            if nextI >= nextJ then
+                { model & size: nextI, nextSize: nextI}
+            else
+                nextModel =
+                    { model & entities: List.swap model.entities (Num.toNat nextI) (Num.toNat nextJ)}
+                refreshHelper nextModel nextI nextJ
+    else
+        { model & size: i, nextSize: i}
+
+refreshIncIHelper : Model, I32 -> I32
+refreshIncIHelper = \model, i ->
+    when List.get model.entities (Num.toNat i) is
+        Ok { signiture } ->
+            if Signiture.isAlive signiture then
+                refreshIncIHelper model (i + 1)
+            else
+                i
+        Err OutOfBounds ->
+            i
+
+refreshDecJHelper : Model, I32 -> I32
+refreshDecJHelper = \model, j ->
+    when List.get model.entities (Num.toNat j) is
+        Ok { signiture } ->
+            if !(Signiture.isAlive signiture) then
+                refreshDecJHelper model (j - 1)
+            else
+                j
+        Err OutOfBounds ->
+            # This should be impossible.
+            0 - 1
 
 addEntity : Model, Signiture -> Result { model: Model, id: I32 } [ OutOfSpace Model ]
 addEntity = \model, signiture ->
@@ -147,7 +192,7 @@ addEntity = \model, signiture ->
         when List.get entities nextSizeNat is
             Ok {id} ->
                 nextModel = 
-                    { model & entities: List.set entities nextSizeNat { id, signiture }, nextSize: nextSize + 1, size: nextSize + 1 }
+                    { model & entities: List.set entities nextSizeNat { id, signiture }, nextSize: nextSize + 1 }
                 Ok { model: nextModel, id }
             Err OutOfBounds ->
                 # This should be impossible.
@@ -267,30 +312,39 @@ deathSystemHelper = \model, currentFrame, i ->
     else
         model
 
+graphicsSystemSig = Signiture.empty |> Signiture.setAlive |> Signiture.setGraphic |> Signiture.setPosition
+
 graphicsSystem : Model -> List ToDraw
-graphicsSystem = \{size, entities, graphics, positions} ->
+graphicsSystem = \model ->
     # This really should be some for of reserve, but it doesn't exist yet.
-    base = List.repeat { color: { aB: 0, bG: 0, cR: 0, dA: 0 }, radius: 0.0, x: 0.0, y: 0.0 } (Num.toNat size)
-    toMatch = Signiture.empty |> Signiture.setAlive |> Signiture.setGraphic |> Signiture.setPosition
-    out =
-        # TODO: This should stop when we pass reach size.
-        List.walk entities {index: Num.toNat 0, count: Num.toNat 0, toDraw: base} (\{index, count, toDraw}, {id, signiture} ->
-            idNat = Num.toNat id
-            if Signiture.matches signiture toMatch then
-                when List.get graphics idNat is
-                    Ok {color, radius} ->
-                        when List.get positions idNat is
-                            Ok {x, y} ->
-                                nextToDraw = List.set toDraw count { color, radius, x, y }
-                                { index: index + 1, count: count + 1, toDraw: nextToDraw }
-                            Err OutOfBounds ->
-                                # This should be impossible.
-                                { index: 0 - 1, count, toDraw }
-                    Err OutOfBounds ->
-                        # This should be impossible.
-                        { index: 0 - 1, count, toDraw }
-            else
-                { index: index + 1, count, toDraw }
-        )
-    # TODO: verify that this can modify in place and be fast.
-    List.takeFirst out.toDraw out.count
+    base = List.repeat { color: { aB: 0, bG: 0, cR: 0, dA: 0 }, radius: 0.0, x: 0.0, y: 0.0 } (Num.toNat model.size)
+    graphicsSystemHelper model base 0 0
+
+graphicsSystemHelper : Model, List ToDraw, I32, I32 -> List ToDraw
+graphicsSystemHelper = \model, toDraw, index, count ->
+    {size, entities, graphics, positions} = model
+    if index < size then
+        when List.get entities (Num.toNat index) is
+            Ok { id, signiture } ->
+                idNat = Num.toNat id
+                if Signiture.matches signiture graphicsSystemSig then
+                    when List.get graphics idNat is
+                        Ok {color, radius} ->
+                            when List.get positions idNat is
+                                Ok {x, y} ->
+                                    nextToDraw = List.set toDraw (Num.toNat count) { color, radius, x, y }
+                                    graphicsSystemHelper model nextToDraw (index + 1) (count + 1)
+                                Err OutOfBounds ->
+                                    # This should be impossible.
+                                    graphicsSystemHelper model toDraw (Num.minI32 - 1) (count + 1)
+                        Err OutOfBounds ->
+                            # This should be impossible.
+                            graphicsSystemHelper model toDraw (Num.minI32 - 1) (count + 1)
+                else
+                    graphicsSystemHelper model toDraw (index + 1) count
+            Err OutOfBounds ->
+                # This should be impossible.
+                graphicsSystemHelper model toDraw (Num.minI32 - 1) (count + 1)
+    else
+        # TODO: verify that this can modify in place and be fast.
+        List.takeFirst toDraw (Num.toNat count)
