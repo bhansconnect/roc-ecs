@@ -7,6 +7,9 @@ platform "roc-ecs-test"
 
 dummyForHost = dummy
 
+twoPi: F32
+twoPi = 2.0 * Num.acos -1
+
 # Names are weird here cause we need to match SDL ordering.
 Color : {
     aB: U8,
