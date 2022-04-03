@@ -4,13 +4,14 @@ interface Signiture
         matches,
         empty,
         feelsGravity,
-        hasDeathTime,
-        hasFade,
-        hasExplode,
-        hasGraphic,
-        hasPosition,
-        hasVelocity,
+        setDeathTime,
+        setFade,
+        setExplode,
+        setGraphic,
+        setPosition,
+        setVelocity,
         setAlive,
+        removeAlive,
         isAlive,
     ]
     imports []
@@ -28,26 +29,29 @@ matches = \$Signiture main, $Signiture other ->
 feelsGravity : Signiture -> Signiture
 feelsGravity = \$Signiture sig -> $Signiture (Num.bitwiseAnd sig 0b0000_0001)
 
-hasDeathTime : Signiture -> Signiture
-hasDeathTime = \$Signiture sig -> $Signiture (Num.bitwiseAnd sig 0b0000_0010)
+setDeathTime : Signiture -> Signiture
+setDeathTime = \$Signiture sig -> $Signiture (Num.bitwiseAnd sig 0b0000_0010)
 
-hasFade : Signiture -> Signiture
-hasFade = \$Signiture sig -> $Signiture (Num.bitwiseAnd sig 0b0000_0100)
+setFade : Signiture -> Signiture
+setFade = \$Signiture sig -> $Signiture (Num.bitwiseAnd sig 0b0000_0100)
 
-hasExplode : Signiture -> Signiture
-hasExplode = \$Signiture sig -> $Signiture (Num.bitwiseAnd sig 0b0000_1000)
+setExplode : Signiture -> Signiture
+setExplode = \$Signiture sig -> $Signiture (Num.bitwiseAnd sig 0b0000_1000)
 
-hasGraphic : Signiture -> Signiture
-hasGraphic = \$Signiture sig -> $Signiture (Num.bitwiseAnd sig 0b0001_0000)
+setGraphic : Signiture -> Signiture
+setGraphic = \$Signiture sig -> $Signiture (Num.bitwiseAnd sig 0b0001_0000)
 
-hasPosition : Signiture -> Signiture
-hasPosition = \$Signiture sig -> $Signiture (Num.bitwiseAnd sig 0b0010_0000)
+setPosition : Signiture -> Signiture
+setPosition = \$Signiture sig -> $Signiture (Num.bitwiseAnd sig 0b0010_0000)
 
-hasVelocity : Signiture -> Signiture
-hasVelocity = \$Signiture sig -> $Signiture (Num.bitwiseAnd sig 0b0100_0000)
+setVelocity : Signiture -> Signiture
+setVelocity = \$Signiture sig -> $Signiture (Num.bitwiseAnd sig 0b0100_0000)
 
 setAlive : Signiture -> Signiture
 setAlive = \$Signiture sig -> $Signiture (Num.bitwiseAnd sig 0b1000_0000)
+
+removeAlive : Signiture -> Signiture
+removeAlive = \$Signiture sig -> $Signiture (Num.bitwiseAnd sig 0b0111_1111)
 
 isAlive : Signiture -> Bool
 isAlive = \$Signiture sig -> sig >= 0b1000_0000

@@ -31,7 +31,7 @@ Entity : {
 }
 
 CompDeathTime : {
-    deadFrame: U32,
+    deadFrame: I32,
 }
 
 CompFade : {
@@ -132,17 +132,46 @@ sizeForHost = \boxModel ->
     { model: boxModel, size: model.size }
 
 stepForHost : Box Model, I32, F32, I32 -> { model: Box Model, toDraw: List ToDraw }
-stepForHost = \boxModel, _currentFrame, _spawnRate, _particles ->
-    model = Box.unbox boxModel
-    toDraw = graphicsSystem model
-    {model: Box.box model, toDraw}
+stepForHost = \boxModel, currentFrame, _spawnRate, _particles ->
+    model0 = Box.unbox boxModel
+    model1 = deathSystem model0 currentFrame
+    toDraw = graphicsSystem model1
+    {model: Box.box model1, toDraw}
+
+deathSystem : Model, I32 -> Model
+deathSystem = \model, currentFrame ->
+    deathSystemHelper model currentFrame 0
+
+deathSystemHelper : Model, I32, I32 -> Model
+deathSystemHelper = \model, currentFrame, i ->
+    if i < model.size then
+        when List.get model.entities (Num.toNat i) is
+            Ok { id, signiture } ->
+                when List.get model.deathTimes (Num.toNat id) is
+                    Ok { deadFrame } ->
+                        # TODO: maybe make this branchless for performance
+                        if currentFrame < deadFrame then
+                            deathSystemHelper model currentFrame (i + 1)
+                        else
+                            deadSigniture = Signiture.removeAlive  signiture
+                            nextModel = { model & entities: List.set model.entities (Num.toNat i) { id, signiture: deadSigniture } }
+                            deathSystemHelper nextModel currentFrame (i + 1)
+                    Err OutOfBounds ->
+                        # This should be impossible
+                        deathSystemHelper model currentFrame (Num.minI32 - 1)
+            Err OutOfBounds ->
+                # This should be impossible
+                deathSystemHelper model currentFrame (Num.minI32 - 1)
+    else
+        model
 
 graphicsSystem : Model -> List ToDraw
 graphicsSystem = \{size, entities, graphics, positions} ->
     # This really should be some for of reserve, but it doesn't exist yet.
     base = List.repeat { color: { aB: 0, bG: 0, cR: 0, dA: 0 }, radius: 0.0, x: 0.0, y: 0.0 } (Num.toNat size)
-    toMatch = Signiture.empty |> Signiture.setAlive |> Signiture.hasGraphic |> Signiture.hasPosition
+    toMatch = Signiture.empty |> Signiture.setAlive |> Signiture.setGraphic |> Signiture.setPosition
     out =
+        # TODO: This should stop when we pass reach size.
         List.walk entities {index: Num.toNat 0, count: Num.toNat 0, toDraw: base} (\{index, count, toDraw}, {id, signiture} ->
             idNat = Num.toNat id
             if Signiture.matches signiture toMatch then
