@@ -29,6 +29,40 @@ Entity : {
     signiture: Signiture,
 }
 
+CompDeathTime : {
+    deadFrame: U32,
+}
+
+CompFade : {
+    rRate: U8,
+    rMin: U8,
+    gRate: U8,
+    gMin: U8,
+    bRate: U8,
+    bMin: U8,
+    aRate: U8,
+    aMin: U8,
+}
+
+CompExplode : {
+    numParticles: I32
+}
+
+CompGraphic : {
+    color: Color,
+    radius: F32,
+}
+
+CompPosition : {
+    x: F32,
+    y: F32,
+}
+
+CompVelocity : {
+    dx: F32,
+    dy: F32,
+}
+
 genEntities : Nat -> List Entity
 genEntities = \count ->
     base = List.repeat {id: 0, signiture: $Signiture 0} count
@@ -49,24 +83,47 @@ Model : {
     size: I32,
     nextSize: I32,
     entities: List Entity,
+    deathTimes: List CompDeathTime,
+    fades: List CompFade,
+    explodes: List CompExplode,
+    graphics: List CompGraphic,
+    positions: List CompPosition,
+    velocities: List CompVelocity,
 }
 
 initForHost : U32, I32 -> Box Model
 initForHost = \seed, max ->
     maxNat = Num.toNat max
-    entities = genEntities maxNat
     Box.box {
         rng: Random.seed32 seed,
         max,
-        entities,
         size: 0,
         nextSize: 0,
+        entities:  genEntities maxNat,
+        deathTimes: List.repeat { deadFrame: 0 } maxNat,
+        fades: List.repeat { rRate: 0, rMin: 0, gRate: 0, gMin: 0, bRate: 0, bMin: 0, aRate: 0, aMin: 0 } maxNat,
+        explodes: List.repeat { numParticles: 0 } maxNat,
+        graphics: List.repeat { color: { aB: 0, bG: 0, cR: 0, dA: 0 }, radius: 0.0 } maxNat,
+        positions: List.repeat { x: 0.0, y: 0.0 } maxNat,
+        velocities: List.repeat { dx: 0.0, dy: 0.0 } maxNat,
     }
 
 setMaxForHost : Box Model, I32 -> Box Model
 setMaxForHost = \boxModel, max ->
+    maxNat = Num.toNat max
     model = Box.unbox boxModel
-    Box.box {model & max, size: 0, nextSize: 0}
+    Box.box {model &
+        max,
+        size: 0,
+        nextSize: 0,
+        entities: genEntities maxNat,
+        deathTimes: List.repeat { deadFrame: 0 } maxNat,
+        fades: List.repeat { rRate: 0, rMin: 0, gRate: 0, gMin: 0, bRate: 0, bMin: 0, aRate: 0, aMin: 0 } maxNat,
+        explodes: List.repeat { numParticles: 0 } maxNat,
+        graphics: List.repeat { color: { aB: 0, bG: 0, cR: 0, dA: 0 }, radius: 0.0 } maxNat,
+        positions: List.repeat { x: 0.0, y: 0.0 } maxNat,
+        velocities: List.repeat { dx: 0.0, dy: 0.0 } maxNat,
+    }
 
 sizeForHost : Box Model -> I32
 sizeForHost = \boxModel ->
