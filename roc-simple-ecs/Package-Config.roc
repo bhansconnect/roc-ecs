@@ -135,11 +135,15 @@ stepForHost : Box Model, I32, F32, I32 -> { model: Box Model, toDraw: List ToDra
 stepForHost = \boxModel, currentFrame, spawnRate, particles ->
     model0 = Box.unbox boxModel
     model1 = deathSystem model0 currentFrame
-    model2 = moveSystem model1
-    model3 = spawnSystem model2 currentFrame spawnRate particles
-    model4 = refresh model3
-    toDraw = graphicsSystem model4
-    {model: Box.box model4, toDraw}
+    # model2 = explodeSystem model1 currentFrame
+    # model3 = fadeSystem model2
+    model3 = model1
+    model4 = moveSystem model3
+    model5 = gravitySystem model4
+    model6 = spawnSystem model5 currentFrame spawnRate particles
+    model7 = refresh model6
+    toDraw = graphicsSystem model7
+    {model: Box.box model7, toDraw}
 
 refresh : Model -> Model
 refresh = \model ->
@@ -315,6 +319,33 @@ deathSystemHelper = \model, currentFrame, i ->
             Err OutOfBounds ->
                 # This should be impossible
                 deathSystemHelper model currentFrame (Num.minI32 - 1)
+    else
+        model
+
+gravitySystemSig = Signiture.empty |> Signiture.setAlive |> Signiture.feelsGravity |> Signiture.setVelocity
+
+gravitySystem : Model -> Model
+gravitySystem = \model ->
+    gravitySystemHelper model 0
+
+gravitySystemHelper : Model, I32 -> Model
+gravitySystemHelper = \model, i ->
+    if i < model.size then
+        when List.get model.entities (Num.toNat i) is
+            Ok { id, signiture } ->
+                if Signiture.matches signiture gravitySystemSig then
+                    when List.get model.velocities (Num.toNat id) is
+                        Ok { dx, dy } ->
+                            nextModel = { model & velocities: List.set model.velocities (Num.toNat id) {dx, dy: dy - 0.0003} }
+                            gravitySystemHelper nextModel (i + 1)
+                        Err OutOfBounds ->
+                            # This should be impossible
+                            gravitySystemHelper model (Num.minI32 - 1)
+                else
+                    gravitySystemHelper model (i + 1)
+            Err OutOfBounds ->
+                # This should be impossible
+                gravitySystemHelper model (Num.minI32 - 1)
     else
         model
 
