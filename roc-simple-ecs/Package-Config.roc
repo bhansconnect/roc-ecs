@@ -135,10 +135,11 @@ stepForHost : Box Model, I32, F32, I32 -> { model: Box Model, toDraw: List ToDra
 stepForHost = \boxModel, currentFrame, spawnRate, particles ->
     model0 = Box.unbox boxModel
     model1 = deathSystem model0 currentFrame
-    model2 = spawnSystem model1 currentFrame spawnRate particles
-    model3 = refresh model2
-    toDraw = graphicsSystem model3
-    {model: Box.box model3, toDraw}
+    model2 = moveSystem model1
+    model3 = spawnSystem model2 currentFrame spawnRate particles
+    model4 = refresh model3
+    toDraw = graphicsSystem model4
+    {model: Box.box model4, toDraw}
 
 refresh : Model -> Model
 refresh = \model ->
@@ -314,6 +315,38 @@ deathSystemHelper = \model, currentFrame, i ->
             Err OutOfBounds ->
                 # This should be impossible
                 deathSystemHelper model currentFrame (Num.minI32 - 1)
+    else
+        model
+
+moveSystemSig = Signiture.empty |> Signiture.setAlive |> Signiture.setPosition |> Signiture.setVelocity
+
+moveSystem : Model -> Model
+moveSystem = \model ->
+    moveSystemHelper model 0
+
+moveSystemHelper : Model, I32 -> Model
+moveSystemHelper = \model, i ->
+    if i < model.size then
+        when List.get model.entities (Num.toNat i) is
+            Ok { id, signiture } ->
+                if Signiture.matches signiture moveSystemSig then
+                    when List.get model.positions (Num.toNat id) is
+                        Ok { x, y } ->
+                            when List.get model.velocities (Num.toNat id) is
+                                Ok { dx, dy } ->
+                                    nextModel = { model & positions: List.set model.positions (Num.toNat id) {x: x + dx, y: y + dy} }
+                                    moveSystemHelper nextModel (i + 1)
+                                Err OutOfBounds ->
+                                    # This should be impossible
+                                    moveSystemHelper model (Num.minI32 - 1)
+                        Err OutOfBounds ->
+                            # This should be impossible
+                            moveSystemHelper model (Num.minI32 - 1)
+                else
+                    moveSystemHelper model (i + 1)
+            Err OutOfBounds ->
+                # This should be impossible
+                moveSystemHelper model (Num.minI32 - 1)
     else
         model
 
