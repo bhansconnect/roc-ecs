@@ -161,4 +161,5 @@ graphicsSystem = \{size, entities, graphics, positions} ->
             else
                 { index: index + 1, count, toDraw }
         )
+    # TODO: verify that this can modify in place and be fast.
     List.takeFirst out.toDraw out.count
