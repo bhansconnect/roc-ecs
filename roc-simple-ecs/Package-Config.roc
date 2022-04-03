@@ -132,11 +132,113 @@ sizeForHost = \boxModel ->
     { model: boxModel, size: model.size }
 
 stepForHost : Box Model, I32, F32, I32 -> { model: Box Model, toDraw: List ToDraw }
-stepForHost = \boxModel, currentFrame, _spawnRate, _particles ->
+stepForHost = \boxModel, currentFrame, spawnRate, particles ->
     model0 = Box.unbox boxModel
     model1 = deathSystem model0 currentFrame
-    toDraw = graphicsSystem model1
-    {model: Box.box model1, toDraw}
+    model2 = spawnSystem model1 currentFrame spawnRate particles
+    toDraw = graphicsSystem model2
+    {model: Box.box model2, toDraw}
+
+addEntity : Model, Signiture -> Result { model: Model, id: I32 } [ OutOfSpace Model ]
+addEntity = \model, signiture ->
+    {nextSize, max, entities} = model
+    if nextSize < max then
+        nextSizeNat = Num.toNat nextSize
+        when List.get entities nextSizeNat is
+            Ok {id} ->
+                nextModel = 
+                    { model & entities: List.set entities nextSizeNat { id, signiture }, nextSize: nextSize + 1, size: nextSize + 1 }
+                Ok { model: nextModel, id }
+            Err OutOfBounds ->
+                # This should be impossible.
+                Ok { model, id: Num.minI32 - 1 }
+    else
+        Err (OutOfSpace model)
+
+divByNonZeroF32 : F32, F32 -> F32
+divByNonZeroF32 = \a, b ->
+    when a / b is
+        Ok v -> v
+        _ -> 0 # Garbage value
+
+# Num.round seems to be stuck using one type
+numRoundI32 : F32 -> I32
+numRoundI32 = \x -> Num.toI32 (Num.round x)
+
+numRoundU32 : F32 -> U32
+numRoundU32 = \x -> Num.toU32 (Num.round x)
+
+spawnFirework : Model, I32, I32 -> Result Model [ OutOfSpace Model ]
+spawnFirework = \model0, currentFrame, numParticles ->
+    signiture =
+        Signiture.empty
+        |> Signiture.setAlive
+        |> Signiture.setDeathTime
+        |> Signiture.setExplode
+        |> Signiture.setGraphic
+        |> Signiture.setPosition
+        |> Signiture.setVelocity
+    when addEntity model0 signiture is
+        Ok result ->
+            model1 = result.model
+            # All rand mapped so that 0.0 to 1.0 is 0 to 1,000,000
+            riseSpeedRand = (Random.u32 10_000 25_000) model1.rng
+            riseSpeed = divByNonZeroF32 (Num.toFloat riseSpeedRand.value) 1_000_000.0
+            framesToCrossScreen = divByNonZeroF32 1.0 riseSpeed
+            lifeMin = numRoundU32 (framesToCrossScreen * 0.6 * 1_000_000.0)
+            lifeMax = numRoundU32 (framesToCrossScreen * 0.95 * 1_000_000.0)
+            lifeInFramesRand = (Random.u32 lifeMin lifeMax) riseSpeedRand.state
+            lifeInFrames = divByNonZeroF32 (Num.toFloat lifeInFramesRand.value) 1_000_000.0
+            deadFrame = currentFrame + (numRoundI32 lifeInFrames)
+
+            colorRand = (Random.u32 0 2) lifeInFramesRand.state
+            color: Color
+            color =
+                when colorRand.value is
+                    0 -> { aB: 255, bG: 0, cR: 0, dA: 255}
+                    1 -> { aB: 0, bG: 255, cR: 0, dA: 255}
+                    2 -> { aB: 0, bG: 0, cR: 255, dA: 255}
+                    _ -> { aB: 0-1, bG: 0, cR: 0, dA: 255} # This should be impossible
+
+            xRand = (Random.u32 50_000 950_000) colorRand.state
+            x = divByNonZeroF32 (Num.toFloat xRand.value) 1_000_000.0
+            id = Num.toNat result.id
+            Ok {
+                model1 &
+                rng: xRand.state,
+                deathTimes: List.set model1.deathTimes id { deadFrame },
+                explodes: List.set model1.explodes id { numParticles },
+                graphics: List.set model1.graphics id { color, radius: 0.02 },
+                positions: List.set model1.positions id { x, y: 0.0 },
+                velocities: List.set model1.velocities id { dx: 0, dy: riseSpeed },
+            }
+        Err (OutOfSpace model1) ->
+            Err (OutOfSpace model1) 
+
+spawnSystem : Model, I32, F32, I32 -> Model
+spawnSystem = \model, currentFrame, spawnRate, numParticles ->
+    guaranteedSpawns = Num.toI32 (Num.floor spawnRate)
+    spawnSystemHelper model currentFrame spawnRate numParticles guaranteedSpawns 0
+
+spawnSystemHelper : Model, I32, F32, I32, I32, I32 -> Model
+spawnSystemHelper = \model0, currentFrame, spawnRate, numParticles, guaranteedSpawns, i ->
+    if i < guaranteedSpawns then
+        when spawnFirework model0 currentFrame numParticles is
+            Ok model1 ->
+                spawnSystemHelper model1 currentFrame spawnRate numParticles guaranteedSpawns (i+1)
+            Err (OutOfSpace model1) ->
+                model1
+    else
+        remainingSpawnRate = spawnRate - (Num.toFloat guaranteedSpawns)
+        remainingSpawnRateU32 = numRoundU32 (remainingSpawnRate * 1_000_000.0)
+        spawnRand = (Random.u32 0 1_000_000) model0.rng
+        model1 = { model0 & rng: spawnRand.state }
+        if spawnRand.value < remainingSpawnRateU32 then
+            when spawnFirework model1 currentFrame numParticles is
+                Ok model2 -> model2
+                Err (OutOfSpace model2) -> model2
+        else
+            model1
 
 deathSystem : Model, I32 -> Model
 deathSystem = \model, currentFrame ->
@@ -153,7 +255,7 @@ deathSystemHelper = \model, currentFrame, i ->
                         if currentFrame < deadFrame then
                             deathSystemHelper model currentFrame (i + 1)
                         else
-                            deadSigniture = Signiture.removeAlive  signiture
+                            deadSigniture = Signiture.removeAlive signiture
                             nextModel = { model & entities: List.set model.entities (Num.toNat i) { id, signiture: deadSigniture } }
                             deathSystemHelper nextModel currentFrame (i + 1)
                     Err OutOfBounds ->
