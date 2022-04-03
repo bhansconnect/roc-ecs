@@ -105,12 +105,15 @@ struct StepReturn {
   RocList<ToDraw> to_draw;
 };
 
+struct SizeReturn {
+  RocModel model;
+  int32_t size;
+};
+
 extern "C" {
 RocModel roc__initForHost_1_exposed(uint32_t seed, int32_t max);
 RocModel roc__setMaxForHost_1_exposed(RocModel model, int32_t max);
-int32_t roc__sizeForHost_1_exposed(RocModel model);
-// Roc expects this to be passed by value and thus as a chain of uint32_t
-// because it does not properly support c-abi.
+void roc__sizeForHost_1_exposed_generic(RocModel model, SizeReturn& ret);
 void roc__stepForHost_1_exposed_generic(RocModel model, int32_t current_frame,
                                         float spawn_rate,
                                         int32_t explosion_particles,
@@ -138,7 +141,12 @@ class ECS {
     return std::move(ret.to_draw);
   }
 
-  int32_t size() { return roc__sizeForHost_1_exposed(model_); }
+  int32_t size() {
+    SizeReturn ret;
+    roc__sizeForHost_1_exposed_generic(model_, ret);
+    model_ = ret.model;
+    return ret.size;
+  }
 
  private:
   RocModel model_;

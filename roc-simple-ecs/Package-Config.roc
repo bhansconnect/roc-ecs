@@ -126,10 +126,10 @@ setMaxForHost = \boxModel, max ->
         velocities: List.repeat { dx: 0.0, dy: 0.0 } maxNat,
     }
 
-sizeForHost : Box Model -> I32
+sizeForHost : Box Model -> { model: Box Model, size: I32 }
 sizeForHost = \boxModel ->
     model = Box.unbox boxModel
-    model.size
+    { model: boxModel, size: model.size }
 
 stepForHost : Box Model, I32, F32, I32 -> { model: Box Model, toDraw: List ToDraw }
 stepForHost = \boxModel, _currentFrame, _spawnRate, _particles ->
