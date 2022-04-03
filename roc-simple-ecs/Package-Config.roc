@@ -133,4 +133,32 @@ sizeForHost = \boxModel ->
 
 stepForHost : Box Model, I32, F32, I32 -> { model: Box Model, toDraw: List ToDraw }
 stepForHost = \boxModel, _currentFrame, _spawnRate, _particles ->
-    {model: boxModel, toDraw: [ { color: { aB: 255, bG: 0, cR: 0, dA: 255 }, radius: 0.04, x: 0.5, y: 0.5 } ]}
+    model = Box.unbox boxModel
+    toDraw = graphicsSystem model
+    {model: Box.box model, toDraw}
+
+graphicsSystem : Model -> List ToDraw
+graphicsSystem = \{size, entities, graphics, positions} ->
+    # This really should be some for of reserve, but it doesn't exist yet.
+    base = List.repeat { color: { aB: 0, bG: 0, cR: 0, dA: 0 }, radius: 0.0, x: 0.0, y: 0.0 } (Num.toNat size)
+    toMatch = Signiture.empty |> Signiture.setAlive |> Signiture.hasGraphic |> Signiture.hasPosition
+    out =
+        List.walk entities {index: Num.toNat 0, count: Num.toNat 0, toDraw: base} (\{index, count, toDraw}, {id, signiture} ->
+            idNat = Num.toNat id
+            if Signiture.matches signiture toMatch then
+                when List.get graphics idNat is
+                    Ok {color, radius} ->
+                        when List.get positions idNat is
+                            Ok {x, y} ->
+                                nextToDraw = List.set toDraw count { color, radius, x, y }
+                                { index: index + 1, count: count + 1, toDraw: nextToDraw }
+                            Err OutOfBounds ->
+                                # This should be impossible.
+                                { index: 0 - 1, count, toDraw }
+                    Err OutOfBounds ->
+                        # This should be impossible.
+                        { index: 0 - 1, count, toDraw }
+            else
+                { index: index + 1, count, toDraw }
+        )
+    List.takeFirst out.toDraw out.count
