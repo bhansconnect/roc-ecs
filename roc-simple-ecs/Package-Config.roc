@@ -2,7 +2,7 @@ platform "roc-ecs-test"
     requires {} { dummy: {} }
     exposes []
     packages {}
-    imports [ Random ]
+    imports [ Random, Signiture.{ Signiture } ]
     provides [ dummyForHost, initForHost, stepForHost, setMaxForHost, sizeForHost ]
 
 dummyForHost = dummy
@@ -24,8 +24,6 @@ ToDraw : {
     x: F32,
     y: F32,
 }
-
-Signiture := U8
 
 Entity : {
     id: I32,
@@ -68,7 +66,7 @@ CompVelocity : {
 
 genEntities : Nat -> List Entity
 genEntities = \count ->
-    base = List.repeat {id: 0, signiture: $Signiture 0} count
+    base = List.repeat {id: 0, signiture: Signiture.empty} count
     genEntitiesHelper base 0
 
 genEntitiesHelper : List Entity, Nat -> List Entity
