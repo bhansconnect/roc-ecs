@@ -113,7 +113,9 @@ struct StepReturn {
 };
 
 extern "C" {
-RocModel* roc__initForHost_1_exposed(uint32_t seed);
+RocModel* roc__initForHost_1_exposed(uint32_t seed, int32_t max);
+RocModel* roc__setMaxForHost_1_exposed(RocModel* model, int32_t max);
+int32_t roc__sizeForHost_1_exposed(RocModel* model);
 // Roc expects this to be passed by value and thus as a chain of uint32_t
 // because it does not properly support c-abi.
 void roc__stepForHost_1_exposed_generic(
@@ -126,29 +128,24 @@ void roc__stepForHost_1_exposed_generic(
 class ECS {
  public:
   explicit ECS(int32_t max) {
-    // TODO: call roc main store closures and model.
     uint32_t seed = std::random_device{}();
-    model_ = roc__initForHost_1_exposed(seed);
+    model_ = roc__initForHost_1_exposed(seed, max);
   }
 
   // This will clear all current entities.
   void SetMaxEntities(int32_t max) {
-    // TODO: call roc closure to resize.
+    model_ = roc__setMaxForHost_1_exposed(model_, max);
   }
 
   RocList<ToDraw> Step(int32_t current_frame, float spawn_rate,
                        int32_t explosion_particles) {
-    // TODO: call roc closure to run all closures.
     StepReturn ret;
     roc__stepForHost_1_exposed_generic(model_, ret);
     model_ = ret.model;
     return std::move(ret.to_draw);
   }
 
-  int32_t size() {
-    // TODO: call roc closure to get size.
-    return {};
-  }
+  int32_t size() { return roc__sizeForHost_1_exposed(model_); }
 
  private:
   RocModel* model_;

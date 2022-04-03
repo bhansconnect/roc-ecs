@@ -3,7 +3,7 @@ platform "roc-ecs-test"
     exposes []
     packages {}
     imports [ Random ]
-    provides [ dummyForHost, initForHost, stepForHost ]
+    provides [ dummyForHost, initForHost, stepForHost, setMaxForHost, sizeForHost ]
 
 dummyForHost = dummy
 
@@ -24,14 +24,27 @@ ToDraw : {
 
 Model : {
     rng: Random.State U32,
+    max: I32,
+    size: I32,
 }
 
-initForHost : U32 -> Box Model
-initForHost = \seed ->
+initForHost : U32, I32 -> Box Model
+initForHost = \seed, max ->
     Box.box {
         rng: Random.seed32 seed,
+        max,
+        size: 0,
     }
 
+setMaxForHost : Box Model, I32 -> Box Model
+setMaxForHost = \boxModel, max ->
+    model = Box.unbox boxModel
+    Box.box {model & max, size: 0}
+
+sizeForHost : Box Model -> I32
+sizeForHost = \boxModel ->
+    model = Box.unbox boxModel
+    model.size
 
 stepForHost : Box Model -> { model: Box Model, toDraw: List ToDraw }
 stepForHost = \boxModel ->
