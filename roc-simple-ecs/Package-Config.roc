@@ -511,7 +511,7 @@ fadeColor = \{aB, bG, cR, dA}, {rRate, rMin, gRate, gMin, bRate, bMin, aRate, aM
         else
             b
     {
-        # TODO: investigate if fade is working right, only looks to change alpha
+        # TODO: investigate why fade isn't working right, only looks to change alpha
         # TODO: change this once U8 comparison is fixed
         aB: Num.toU8 (max (Num.toU32 bMin) (Num.toU32 aB - Num.toU32 bRate)),
         bG: Num.toU8 (max (Num.toU32 gMin) (Num.toU32 bG - Num.toU32 gRate)),
