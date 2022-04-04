@@ -362,7 +362,7 @@ explodeSystemHelper = \model, currentFrame, i ->
         model
 
 spawnExplosion : Model, CompPosition, Color, I32, I32 -> Model
-spawnExplosion = \model0, pos, oldColor, _numParticles, currentFrame ->
+spawnExplosion = \model0, pos, oldColor, numParticles, currentFrame ->
     signiture =
         Signiture.empty
         |> Signiture.setAlive
@@ -400,15 +400,76 @@ spawnExplosion = \model0, pos, oldColor, _numParticles, currentFrame ->
 
             graphic = { color, radius: divByNonZeroF32 0.03 frameScale }
             id = Num.toNat result.id
-            {
-                model1 &
-                deathTimes: List.set model1.deathTimes id { deadFrame },
-                fades: List.set model1.fades id fade,
-                graphics: List.set model1.graphics id graphic,
-                positions: List.set model1.positions id pos,
-            }
+            model2 =
+                {
+                    model1 &
+                    deathTimes: List.set model1.deathTimes id { deadFrame },
+                    fades: List.set model1.fades id fade,
+                    graphics: List.set model1.graphics id graphic,
+                    positions: List.set model1.positions id pos,
+                }
+            remaining = model2.max - model2.nextSize
+            generatedParticles =
+                if remaining < numParticles then
+                    remaining
+                else
+                    numParticles
+
+            particleFade = {
+                    fade &
+                    rRate: Num.shiftRightZfBy 2 fade.rRate,
+                    gRate: Num.shiftRightZfBy 2 fade.gRate,
+                    bRate: Num.shiftRightZfBy 2 fade.bRate,
+                    aRate: Num.shiftRightZfBy 1 fade.aRate,
+                }
+            spawnParticles model2 0 generatedParticles pos particleFade color currentFrame lifeInFrames frameScale (divByNonZeroF32 twoPi (Num.toFloat generatedParticles))
         Err (OutOfSpace model1) ->
             model1
+
+particleSigniture =
+    Signiture.empty
+    |> Signiture.setAlive
+    |> Signiture.setDeathTime
+    |> Signiture.setFade
+    |> Signiture.setGraphic
+    |> Signiture.setPosition
+    |> Signiture.setVelocity
+    |> Signiture.feelsGravity
+
+spawnParticles : Model, I32, I32, CompPosition, CompFade, Color, I32, U32, F32, F32 -> Model
+spawnParticles = \model0, i, particles, pos, fade, color, currentFrame, lifeInFrames, frameScale, chunkSize ->
+    if i < particles then
+        when addEntity model0 particleSigniture is
+            Ok result ->
+                model1 = result.model
+                minDir = numRoundU32 (1_000_000.0 * chunkSize * Num.toFloat i)
+                maxDir = numRoundU32 (1_000_000.0 * chunkSize * Num.toFloat (i + 1))
+                dirRand = (Random.u32 minDir maxDir) model1.rng
+                dir = divByNonZeroF32 (Num.toFloat dirRand.value) 1_000_000.0
+                unitDx = Num.cos dir
+                unitDy = Num.sin dir
+                velScale = 0.01
+                dx = unitDx * velScale
+                dy = unitDy * velScale
+
+                lifeBonusRand = (Random.u32 0 10) dirRand.state
+                deadFrame = currentFrame + (numRoundI32 (1.5 * Num.toFloat lifeInFrames)) + Num.toI32 lifeBonusRand.value
+
+                id = Num.toNat result.id
+                model2 = {
+                        model1 &
+                        rng: lifeBonusRand.state,
+                        deathTimes: List.set model1.deathTimes id { deadFrame },
+                        fades: List.set model1.fades id fade,
+                        graphics: List.set model1.graphics id { color, radius: divByNonZeroF32 0.015 frameScale },
+                        positions: List.set model1.positions id pos,
+                        velocities: List.set model1.velocities id { dx, dy },
+                    }
+                spawnParticles model2 (i + 1) particles pos fade color currentFrame lifeInFrames frameScale chunkSize
+            Err (OutOfSpace model1) ->
+                model1
+    else
+        model0
 
 fadeSystemSig = Signiture.empty |> Signiture.setAlive |> Signiture.setFade |> Signiture.setGraphic
 
