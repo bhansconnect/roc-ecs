@@ -275,7 +275,7 @@ class ECS {
             .a_rate = static_cast<uint8_t>(30.0f * frame_scale),
             .a_min = 50,
         };
-        if (color.r > color.g && color.a > color.b) {
+        if (color.r > color.g && color.r > color.b) {
           f.g_min = 100;
           f.g_rate = static_cast<uint8_t>(40.0f * frame_scale);
           color = {.b = 0, .g = 255, .r = 255, .a = 255};
