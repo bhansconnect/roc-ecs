@@ -136,8 +136,8 @@ stepForHost = \boxModel, currentFrame, spawnRate, particles ->
     model0 = Box.unbox boxModel
     model1 = deathSystem model0 currentFrame
     # model2 = explodeSystem model1 currentFrame
-    # model3 = fadeSystem model2
-    model3 = model1
+    model2 = model1
+    model3 = fadeSystem model2
     model4 = moveSystem model3
     model5 = gravitySystem model4
     model6 = spawnSystem model5 currentFrame spawnRate particles
@@ -321,6 +321,52 @@ deathSystemHelper = \model, currentFrame, i ->
                 deathSystemHelper model currentFrame (Num.minI32 - 1)
     else
         model
+
+fadeSystemSig = Signiture.empty |> Signiture.setAlive |> Signiture.setFade |> Signiture.setGraphic
+
+fadeSystem : Model -> Model
+fadeSystem = \model ->
+    fadeSystemHelper model 0
+
+fadeSystemHelper : Model, I32 -> Model
+fadeSystemHelper = \model, i ->
+    if i < model.size then
+        when List.get model.entities (Num.toNat i) is
+            Ok { id, signiture } ->
+                if Signiture.matches signiture fadeSystemSig then
+                    when List.get model.fades (Num.toNat id) is
+                        Ok fade ->
+                            when List.get model.graphics (Num.toNat id) is
+                                Ok { color, radius } ->
+                                    nextModel = { model & graphics: List.set model.graphics (Num.toNat id) { color: fadeColor color fade, radius} }
+                                    fadeSystemHelper nextModel (i + 1)
+                                Err OutOfBounds ->
+                                    # This should be impossible
+                                    fadeSystemHelper model (Num.minI32 - 1)
+                        Err OutOfBounds ->
+                            # This should be impossible
+                            fadeSystemHelper model (Num.minI32 - 1)
+                else
+                    fadeSystemHelper model (i + 1)
+            Err OutOfBounds ->
+                # This should be impossible
+                fadeSystemHelper model (Num.minI32 - 1)
+    else
+        model
+
+fadeColor : Color, CompFade -> Color
+fadeColor = \{aB, bG, cR, dA}, {rRate, rMin, gRate, gMin, bRate, bMin, aRate, aMin} ->
+    max = \a, b ->
+        if a > b then
+            a
+        else
+            b
+    {
+        aB: max bMin (aB - bRate),
+        bG: max gMin (bG - gRate),
+        cR: max rMin (cR - rRate),
+        dA: max aMin (dA - aRate),
+    }
 
 gravitySystemSig = Signiture.empty |> Signiture.setAlive |> Signiture.feelsGravity |> Signiture.setVelocity
 
