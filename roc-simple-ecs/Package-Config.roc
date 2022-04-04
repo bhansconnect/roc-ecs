@@ -135,8 +135,7 @@ stepForHost : Box Model, I32, F32, I32 -> { model: Box Model, toDraw: List ToDra
 stepForHost = \boxModel, currentFrame, spawnRate, particles ->
     model0 = Box.unbox boxModel
     model1 = deathSystem model0 currentFrame
-    # model2 = explodeSystem model1 currentFrame
-    model2 = model1
+    model2 = explodeSystem model1 currentFrame
     model3 = fadeSystem model2
     model4 = moveSystem model3
     model5 = gravitySystem model4
@@ -217,6 +216,9 @@ numRoundI32 = \x -> Num.toI32 (Num.round x)
 
 numRoundU32 : F32 -> U32
 numRoundU32 = \x -> Num.toU32 (Num.round x)
+
+numRoundU8 : F32 -> U8
+numRoundU8 = \x -> Num.toU8 (Num.round x)
 
 spawnFirework : Model, I32, I32 -> Result Model [ OutOfSpace Model ]
 spawnFirework = \model0, currentFrame, numParticles ->
@@ -322,6 +324,92 @@ deathSystemHelper = \model, currentFrame, i ->
     else
         model
 
+explodeSystemSig = Signiture.empty |> Signiture.setExplode |> Signiture.setGraphic |> Signiture.setPosition
+
+explodeSystem : Model, I32 -> Model
+explodeSystem = \model, currentFrame ->
+    explodeSystemHelper model currentFrame 0
+
+explodeSystemHelper : Model, I32, I32 -> Model
+explodeSystemHelper = \model, currentFrame, i ->
+    if i < model.size then
+        when List.get model.entities (Num.toNat i) is
+            Ok { id, signiture } ->
+                if !(Signiture.isAlive signiture) && Signiture.matches signiture explodeSystemSig then
+                    when List.get model.positions (Num.toNat id) is
+                        Ok pos ->
+                            when List.get model.graphics (Num.toNat id) is
+                                Ok { color } ->
+                                    when List.get model.explodes (Num.toNat id) is
+                                        Ok { numParticles } ->
+                                            nextModel = spawnExplosion model pos color numParticles currentFrame
+                                            explodeSystemHelper nextModel currentFrame (i + 1)
+                                        Err OutOfBounds ->
+                                            # This should be impossible
+                                            explodeSystemHelper model currentFrame (Num.minI32 - 1)
+                                Err OutOfBounds ->
+                                    # This should be impossible
+                                    explodeSystemHelper model currentFrame (Num.minI32 - 1)
+                        Err OutOfBounds ->
+                            # This should be impossible
+                            explodeSystemHelper model currentFrame (Num.minI32 - 1)
+                else
+                    explodeSystemHelper model currentFrame (i + 1)
+            Err OutOfBounds ->
+                # This should be impossible
+                explodeSystemHelper model currentFrame (Num.minI32 - 1)
+    else
+        model
+
+spawnExplosion : Model, CompPosition, Color, I32, I32 -> Model
+spawnExplosion = \model0, pos, oldColor, _numParticles, currentFrame ->
+    signiture =
+        Signiture.empty
+        |> Signiture.setAlive
+        |> Signiture.setDeathTime
+        |> Signiture.setFade
+        |> Signiture.setGraphic
+        |> Signiture.setPosition
+    when addEntity model0 signiture is
+        Ok result ->
+            model1 = result.model
+            lifeInFramesRand = (Random.u32 10 30) model1.rng
+            lifeInFrames = lifeInFramesRand.value
+            frameScale = divByNonZeroF32 10.0 (Num.toFloat lifeInFrames)
+            deadFrame = currentFrame + Num.toI32 lifeInFrames
+
+            baseFade = { rMin: 0, rRate: 0, gMin: 0, gRate: 0, bMin: 0, bRate: 0, aMin: 50, aRate: numRoundU8 (30.0 * frameScale) }
+            { fade, color } =
+                # TODO: change this once U8 comparison if fixed
+                if Num.toU32 oldColor.cR > Num.toU32 oldColor.bG && Num.toU32 oldColor.cR > Num.toU32 oldColor.aB then
+                    {
+                        fade: {baseFade & gMin: 100, gRate: numRoundU8 (40.0 * frameScale)},
+                        color: { aB: 0, bG: 255, cR: 255, dA: 255 },
+                    }
+                # TODO: change this once U8 comparison if fixed
+                else if Num.toU32 oldColor.bG > Num.toU32 oldColor.aB then
+                    {
+                        fade: {baseFade & bMin: 100, bRate: numRoundU8 (40.0 * frameScale)},
+                        color: { aB: 255, bG: 255, cR: 0, dA: 255 },
+                    }
+                else
+                    {
+                        fade: {baseFade & rMin: 100, rRate: numRoundU8 (40.0 * frameScale)},
+                        color: { aB: 255, bG: 0, cR: 255, dA: 255 },
+                    }
+
+            graphic = { color, radius: divByNonZeroF32 0.03 frameScale }
+            id = Num.toNat result.id
+            {
+                model1 &
+                deathTimes: List.set model1.deathTimes id { deadFrame },
+                fades: List.set model1.fades id fade,
+                graphics: List.set model1.graphics id graphic,
+                positions: List.set model1.positions id pos,
+            }
+        Err (OutOfSpace model1) ->
+            model1
+
 fadeSystemSig = Signiture.empty |> Signiture.setAlive |> Signiture.setFade |> Signiture.setGraphic
 
 fadeSystem : Model -> Model
@@ -362,10 +450,12 @@ fadeColor = \{aB, bG, cR, dA}, {rRate, rMin, gRate, gMin, bRate, bMin, aRate, aM
         else
             b
     {
-        aB: max bMin (aB - bRate),
-        bG: max gMin (bG - gRate),
-        cR: max rMin (cR - rRate),
-        dA: max aMin (dA - aRate),
+        # TODO: investigate if fade is working right, only looks to change alpha
+        # TODO: change this once U8 comparison is fixed
+        aB: Num.toU8 (max (Num.toU32 bMin) (Num.toU32 aB - Num.toU32 bRate)),
+        bG: Num.toU8 (max (Num.toU32 gMin) (Num.toU32 bG - Num.toU32 gRate)),
+        cR: Num.toU8 (max (Num.toU32 rMin) (Num.toU32 cR - Num.toU32 rRate)),
+        dA: Num.toU8 (max (Num.toU32 aMin) (Num.toU32 dA - Num.toU32 aRate)),
     }
 
 gravitySystemSig = Signiture.empty |> Signiture.setAlive |> Signiture.feelsGravity |> Signiture.setVelocity
