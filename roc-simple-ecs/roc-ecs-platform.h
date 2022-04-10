@@ -111,39 +111,42 @@ struct SizeReturn {
 };
 
 extern "C" {
-RocModel roc__initForHost_1_exposed(uint32_t seed, int32_t max);
-RocModel roc__setMaxForHost_1_exposed(RocModel model, int32_t max);
-void roc__sizeForHost_1_exposed_generic(RocModel model, SizeReturn& ret);
-void roc__stepForHost_1_exposed_generic(RocModel model, int32_t current_frame,
-                                        float spawn_rate,
-                                        int32_t explosion_particles,
-                                        StepReturn& ret);
+void roc__mainForHost_1_InitFn_caller(uint32_t& seed, int32_t& max,
+                                      void* capture, RocModel& out);
+void roc__mainForHost_1_SetMaxFn_caller(RocModel& model, int32_t& max,
+                                        void* capture, RocModel& out);
+void roc__mainForHost_1_SizeFn_caller(RocModel& model, void* capture,
+                                      SizeReturn& ret);
+void roc__mainForHost_1_StepFn_caller(RocModel& model, int32_t& current_frame,
+                                      float& spawn_rate,
+                                      int32_t& explosion_particles,
+                                      void* capture, StepReturn& ret);
 }
 
 class ECS {
  public:
   explicit ECS(int32_t max) {
     uint32_t seed = std::random_device{}();
-    model_ = roc__initForHost_1_exposed(seed, max);
+    roc__mainForHost_1_InitFn_caller(seed, max, nullptr, model_);
   }
 
   // This will clear all current entities.
   void SetMaxEntities(int32_t max) {
-    model_ = roc__setMaxForHost_1_exposed(model_, max);
+    roc__mainForHost_1_SetMaxFn_caller(model_, max, nullptr, model_);
   }
 
   RocList<ToDraw> Step(int32_t current_frame, float spawn_rate,
                        int32_t explosion_particles) {
     StepReturn ret;
-    roc__stepForHost_1_exposed_generic(model_, current_frame, spawn_rate,
-                                       explosion_particles, ret);
+    roc__mainForHost_1_StepFn_caller(model_, current_frame, spawn_rate,
+                                     explosion_particles, nullptr, ret);
     model_ = ret.model;
     return std::move(ret.to_draw);
   }
 
   int32_t size() {
     SizeReturn ret;
-    roc__sizeForHost_1_exposed_generic(model_, ret);
+    roc__mainForHost_1_SizeFn_caller(model_, nullptr, ret);
     model_ = ret.model;
     return ret.size;
   }
