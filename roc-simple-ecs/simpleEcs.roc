@@ -148,8 +148,10 @@ refreshHelper = \model, i, j ->
             if nextI >= nextJ then
                 { model & size: nextI, nextSize: nextI}
             else
+                entities = model.entities
+                tmpModel = { model & entities: [] }
                 nextModel =
-                    { model & entities: List.swap model.entities (Num.toNat nextI) (Num.toNat nextJ)}
+                    { tmpModel & entities: List.swap entities (Num.toNat nextI) (Num.toNat nextJ)}
                 refreshHelper nextModel nextI nextJ
     else
         { model & size: i, nextSize: i}
@@ -179,13 +181,15 @@ refreshDecJHelper = \model, j ->
 
 addEntity : Model, Signiture -> Result { model: Model, id: I32 } [ OutOfSpace Model ]
 addEntity = \model, signiture ->
-    {nextSize, max, entities} = model
+    {nextSize, max} = model
     if nextSize < max then
         nextSizeNat = Num.toNat nextSize
-        when List.get entities nextSizeNat is
+        when List.get model.entities nextSizeNat is
             Ok {id} ->
+                entities = model.entities
+                tmpModel = { model & entities: [] }
                 nextModel = 
-                    { model & entities: List.set entities nextSizeNat { id, signiture }, nextSize: nextSize + 1 }
+                    { tmpModel & entities: List.set entities nextSizeNat { id, signiture }, nextSize: nextSize + 1 }
                 Ok { model: nextModel, id }
             Err OutOfBounds ->
                 # This should be impossible.
@@ -300,7 +304,9 @@ deathSystemHelper = \model, currentFrame, i ->
                                 deathSystemHelper model currentFrame (i + 1)
                             else
                                 deadSigniture = Signiture.removeAlive signiture
-                                nextModel = { model & entities: List.set model.entities (Num.toNat i) { id, signiture: deadSigniture } }
+                                entities = model.entities
+                                tmpModel = { model & entities: [] }
+                                nextModel = { tmpModel & entities: List.set entities (Num.toNat i) { id, signiture: deadSigniture } }
                                 deathSystemHelper nextModel currentFrame (i + 1)
                         Err OutOfBounds ->
                             # This should be impossible
