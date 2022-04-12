@@ -248,14 +248,24 @@ spawnFirework = \model0, currentFrame, numParticles ->
             xRand = (Random.u32 50_000 950_000) colorRand.state
             x = divByNonZeroF32 (Num.toFloat xRand.value) 1_000_000.0
             id = Num.toNat result.id
+            {deathTimes, explodes, graphics, positions, velocities} = model1
+            model2 =
+                {
+                    model1 &
+                    deathTimes: [],
+                    explodes: [],
+                    graphics: [],
+                    positions: [],
+                    velocities: [],
+                }
             Ok {
-                model1 &
+                model2 &
                 rng: xRand.state,
-                deathTimes: List.set model1.deathTimes id { deadFrame },
-                explodes: List.set model1.explodes id { numParticles },
-                graphics: List.set model1.graphics id { color, radius: 0.02 },
-                positions: List.set model1.positions id { x, y: 0.0 },
-                velocities: List.set model1.velocities id { dx: 0, dy: riseSpeed },
+                deathTimes: List.set deathTimes id { deadFrame },
+                explodes: List.set explodes id { numParticles },
+                graphics: List.set graphics id { color, radius: 0.02 },
+                positions: List.set positions id { x, y: 0.0 },
+                velocities: List.set velocities id { dx: 0, dy: riseSpeed },
             }
         Err (OutOfSpace model1) ->
             Err (OutOfSpace model1) 
@@ -395,15 +405,24 @@ spawnExplosion = \model0, pos, oldColor, numParticles, currentFrame ->
 
             graphic = { color, radius: divByNonZeroF32 0.03 frameScale }
             id = Num.toNat result.id
+            {deathTimes, fades, graphics, positions} = model1
             model2 =
                 {
                     model1 &
-                    deathTimes: List.set model1.deathTimes id { deadFrame },
-                    fades: List.set model1.fades id fade,
-                    graphics: List.set model1.graphics id graphic,
-                    positions: List.set model1.positions id pos,
+                    deathTimes: [],
+                    fades: [],
+                    graphics: [],
+                    positions: [],
                 }
-            remaining = model2.max - model2.nextSize
+            model3 =
+                {
+                    model2 &
+                    deathTimes: List.set deathTimes id { deadFrame },
+                    fades: List.set fades id fade,
+                    graphics: List.set graphics id graphic,
+                    positions: List.set positions id pos,
+                }
+            remaining = model3.max - model3.nextSize
             generatedParticles =
                 if remaining < numParticles then
                     remaining
@@ -417,7 +436,7 @@ spawnExplosion = \model0, pos, oldColor, numParticles, currentFrame ->
                     bRate: Num.shiftRightZfBy 2 fade.bRate,
                     aRate: Num.shiftRightZfBy 1 fade.aRate,
                 }
-            spawnParticles model2 0 generatedParticles pos particleFade color currentFrame lifeInFrames frameScale (divByNonZeroF32 twoPi (Num.toFloat generatedParticles))
+            spawnParticles model3 0 generatedParticles pos particleFade color currentFrame lifeInFrames frameScale (divByNonZeroF32 twoPi (Num.toFloat generatedParticles))
         Err (OutOfSpace model1) ->
             model1
 
@@ -451,16 +470,25 @@ spawnParticles = \model0, i, particles, pos, fade, color, currentFrame, lifeInFr
                 deadFrame = currentFrame + (numRoundI32 (1.5 * Num.toFloat lifeInFrames)) + Num.toI32 lifeBonusRand.value
 
                 id = Num.toNat result.id
+                {deathTimes, fades, graphics, positions, velocities} = model1
                 model2 = {
                         model1 &
-                        rng: lifeBonusRand.state,
-                        deathTimes: List.set model1.deathTimes id { deadFrame },
-                        fades: List.set model1.fades id fade,
-                        graphics: List.set model1.graphics id { color, radius: divByNonZeroF32 0.015 frameScale },
-                        positions: List.set model1.positions id pos,
-                        velocities: List.set model1.velocities id { dx, dy },
+                        deathTimes: [],
+                        fades: [],
+                        graphics: [],
+                        positions: [],
+                        velocities: [],
                     }
-                spawnParticles model2 (i + 1) particles pos fade color currentFrame lifeInFrames frameScale chunkSize
+                model3 = {
+                        model2 &
+                        rng: lifeBonusRand.state,
+                        deathTimes: List.set deathTimes id { deadFrame },
+                        fades: List.set fades id fade,
+                        graphics: List.set graphics id { color, radius: divByNonZeroF32 0.015 frameScale },
+                        positions: List.set positions id pos,
+                        velocities: List.set velocities id { dx, dy },
+                    }
+                spawnParticles model3 (i + 1) particles pos fade color currentFrame lifeInFrames frameScale chunkSize
             Err (OutOfSpace model1) ->
                 model1
     else
