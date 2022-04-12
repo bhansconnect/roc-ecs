@@ -476,7 +476,9 @@ fadeSystemHelper = \model, i ->
                         Ok fade ->
                             when List.get model.graphics (Num.toNat id) is
                                 Ok { color, radius } ->
-                                    nextModel = { model & graphics: List.set model.graphics (Num.toNat id) { color: fadeColor color fade, radius} }
+                                    graphics = model.graphics
+                                    tmpModel = { model & graphics: [] }
+                                    nextModel = { tmpModel & graphics: List.set graphics (Num.toNat id) { color: fadeColor color fade, radius} }
                                     fadeSystemHelper nextModel (i + 1)
                                 Err OutOfBounds ->
                                     # This should be impossible
@@ -521,7 +523,9 @@ gravitySystemHelper = \model, i ->
                 if Signiture.matches signiture gravitySystemSig then
                     when List.get model.velocities (Num.toNat id) is
                         Ok { dx, dy } ->
-                            nextModel = { model & velocities: List.set model.velocities (Num.toNat id) {dx, dy: dy - 0.0003} }
+                            velocities = model.velocities
+                            tmpModel = { model & velocities: [] }
+                            nextModel = { tmpModel & velocities: List.set velocities (Num.toNat id) {dx, dy: dy - 0.0003} }
                             gravitySystemHelper nextModel (i + 1)
                         Err OutOfBounds ->
                             # This should be impossible
@@ -550,7 +554,9 @@ moveSystemHelper = \model, i ->
                         Ok { x, y } ->
                             when List.get model.velocities (Num.toNat id) is
                                 Ok { dx, dy } ->
-                                    nextModel = { model & positions: List.set model.positions (Num.toNat id) {x: x + dx, y: y + dy} }
+                                    positions = model.positions
+                                    tmpModel = { model & positions: [] }
+                                    nextModel = { tmpModel & positions: List.set positions (Num.toNat id) {x: x + dx, y: y + dy} }
                                     moveSystemHelper nextModel (i + 1)
                                 Err OutOfBounds ->
                                     # This should be impossible
