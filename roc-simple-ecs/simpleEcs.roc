@@ -11,8 +11,10 @@ main = {
         stepFn,
     }
 
-twoPi: F32
-twoPi = 2.0 * Num.acos -1
+pi : F32
+pi = Num.acos -1
+twoPi : F32
+twoPi = 2.0 * pi
 
 Entity : {
     id: I32,
@@ -272,23 +274,21 @@ spawnFirework = \model0, currentFrame, numParticles ->
 
 spawnSystem : Model, I32, F32, I32 -> Model
 spawnSystem = \model, currentFrame, spawnRate, numParticles ->
-    guaranteedSpawns = Num.toI32 (Num.floor spawnRate)
-    spawnSystemHelper model currentFrame spawnRate numParticles guaranteedSpawns 0
+    spawnSystemHelper model currentFrame spawnRate numParticles
 
-spawnSystemHelper : Model, I32, F32, I32, I32, I32 -> Model
-spawnSystemHelper = \model0, currentFrame, spawnRate, numParticles, guaranteedSpawns, i ->
-    if i < guaranteedSpawns then
+spawnSystemHelper : Model, I32, F32, I32 -> Model
+spawnSystemHelper = \model0, currentFrame, spawnRate, numParticles  ->
+    if spawnRate > 1.0 then
         when spawnFirework model0 currentFrame numParticles is
             Ok model1 ->
-                spawnSystemHelper model1 currentFrame spawnRate numParticles guaranteedSpawns (i+1)
+                spawnSystemHelper model1 currentFrame (spawnRate - 1.0) numParticles
             Err (OutOfSpace model1) ->
                 model1
     else
-        remainingSpawnRate = spawnRate - (Num.toFloat guaranteedSpawns)
-        remainingSpawnRateU32 = numRoundU32 (remainingSpawnRate * 1_000_000.0)
+        spawnRateU32 = numRoundU32 (spawnRate * 1_000_000.0)
         spawnRand = (Random.u32 0 1_000_000) model0.rng
         model1 = { model0 & rng: spawnRand.state }
-        if spawnRand.value < remainingSpawnRateU32 then
+        if spawnRand.value < spawnRateU32 then
             when spawnFirework model1 currentFrame numParticles is
                 Ok model2 -> model2
                 Err (OutOfSpace model2) -> model2
@@ -450,6 +450,28 @@ particleSigniture =
     |> Signiture.setVelocity
     |> Signiture.feelsGravity
 
+pi2: F32
+pi2 = pi*pi
+
+sinApprox : F32 -> F32
+sinApprox = \x ->
+    if x <= pi then
+        pixx = (pi - x)*x
+        divByNonZeroF32 (16*pixx) (5*pi2-4*pixx)
+    else
+        -1.0 * sinApprox (x - pi)
+
+halfPi: F32
+halfPi = pi*0.5
+
+cosApprox : F32 -> F32
+cosApprox = \x ->
+    if x <= halfPi && x >= -halfPi then
+        x2 = x * x
+        divByNonZeroF32 (pi2 - 4*x2) (pi2 + x2)
+    else
+        -1.0 * cosApprox (x - pi)
+
 spawnParticles : Model, I32, I32, CompPosition, CompFade, Color, I32, U32, F32, F32 -> Model
 spawnParticles = \model0, i, particles, pos, fade, color, currentFrame, lifeInFrames, frameScale, chunkSize ->
     if i < particles then
@@ -460,8 +482,8 @@ spawnParticles = \model0, i, particles, pos, fade, color, currentFrame, lifeInFr
                 maxDir = numRoundU32 (1_000_000.0 * chunkSize * Num.toFloat (i + 1))
                 dirRand = (Random.u32 minDir maxDir) model1.rng
                 dir = divByNonZeroF32 (Num.toFloat dirRand.value) 1_000_000.0
-                unitDx = Num.cos dir
-                unitDy = Num.sin dir
+                unitDx = cosApprox dir
+                unitDy = sinApprox dir
                 velScale = 0.01
                 dx = unitDx * velScale
                 dy = unitDy * velScale
