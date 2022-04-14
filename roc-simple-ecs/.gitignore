@@ -3,4 +3,10 @@ subprojects/*
 !subprojects/*.wrap
 
 *.o
+*.so
 *.a
+
+dynhost
+metadata
+preprocessedhost
+roc-simple-ecs
