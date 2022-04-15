@@ -199,12 +199,6 @@ addEntity = \model, signiture ->
     else
         Err (OutOfSpace model)
 
-divByNonZeroF32 : F32, F32 -> F32
-divByNonZeroF32 = \a, b ->
-    when a / b is
-        Ok v -> v
-        _ -> 0 # Garbage value
-
 # Num.round seems to be stuck using one type
 numRoundI32 : F32 -> I32
 numRoundI32 = \x -> Num.toI32 (Num.round x)
@@ -230,12 +224,12 @@ spawnFirework = \model0, currentFrame, numParticles ->
             model1 = result.model
             # All rand mapped so that 0.0 to 1.0 is 0 to 1,000,000
             riseSpeedRand = (Random.u32 10_000 25_000) model1.rng
-            riseSpeed = divByNonZeroF32 (Num.toFloat riseSpeedRand.value) 1_000_000.0
-            framesToCrossScreen = divByNonZeroF32 1.0 riseSpeed
+            riseSpeed = (Num.toFloat riseSpeedRand.value) / 1_000_000.0
+            framesToCrossScreen = 1.0 / riseSpeed
             lifeMin = numRoundU32 (framesToCrossScreen * 0.6 * 1_000_000.0)
             lifeMax = numRoundU32 (framesToCrossScreen * 0.95 * 1_000_000.0)
             lifeInFramesRand = (Random.u32 lifeMin lifeMax) riseSpeedRand.state
-            lifeInFrames = divByNonZeroF32 (Num.toFloat lifeInFramesRand.value) 1_000_000.0
+            lifeInFrames = (Num.toFloat lifeInFramesRand.value) / 1_000_000.0
             deadFrame = currentFrame + (numRoundI32 lifeInFrames)
 
             colorRand = (Random.u32 0 2) lifeInFramesRand.state
@@ -248,7 +242,7 @@ spawnFirework = \model0, currentFrame, numParticles ->
                     _ -> { aB: 0-1, bG: 0, cR: 0, dA: 255} # This should be impossible
 
             xRand = (Random.u32 50_000 950_000) colorRand.state
-            x = divByNonZeroF32 (Num.toFloat xRand.value) 1_000_000.0
+            x = (Num.toFloat xRand.value) / 1_000_000.0
             id = Num.toNat result.id
             {deathTimes, explodes, graphics, positions, velocities} = model1
             model2 =
@@ -380,7 +374,7 @@ spawnExplosion = \model0, pos, oldColor, numParticles, currentFrame ->
             model1 = result.model
             lifeInFramesRand = (Random.u32 10 30) model1.rng
             lifeInFrames = lifeInFramesRand.value
-            frameScale = divByNonZeroF32 10.0 (Num.toFloat lifeInFrames)
+            frameScale = 10.0 / (Num.toFloat lifeInFrames)
             deadFrame = currentFrame + Num.toI32 lifeInFrames
 
             baseFade = { rMin: 0, rRate: 0, gMin: 0, gRate: 0, bMin: 0, bRate: 0, aMin: 50, aRate: numRoundU8 (30.0 * frameScale) }
@@ -403,7 +397,7 @@ spawnExplosion = \model0, pos, oldColor, numParticles, currentFrame ->
                         color: { aB: 255, bG: 0, cR: 255, dA: 255 },
                     }
 
-            graphic = { color, radius: divByNonZeroF32 0.03 frameScale }
+            graphic = { color, radius: 0.03 / frameScale }
             id = Num.toNat result.id
             {deathTimes, fades, graphics, positions} = model1
             model2 =
@@ -436,7 +430,7 @@ spawnExplosion = \model0, pos, oldColor, numParticles, currentFrame ->
                     bRate: Num.shiftRightZfBy 2 fade.bRate,
                     aRate: Num.shiftRightZfBy 1 fade.aRate,
                 }
-            spawnParticles model3 0 generatedParticles pos particleFade color currentFrame lifeInFrames frameScale (divByNonZeroF32 twoPi (Num.toFloat generatedParticles))
+            spawnParticles model3 0 generatedParticles pos particleFade color currentFrame lifeInFrames frameScale (twoPi / (Num.toFloat generatedParticles))
         Err (OutOfSpace model1) ->
             model1
 
@@ -457,7 +451,7 @@ sinApprox : F32 -> F32
 sinApprox = \x ->
     if x <= pi then
         pixx = (pi - x)*x
-        divByNonZeroF32 (16*pixx) (5*pi2-4*pixx)
+        (16*pixx) / (5*pi2-4*pixx)
     else
         -1.0 * sinApprox (x - pi)
 
@@ -468,7 +462,7 @@ cosApprox : F32 -> F32
 cosApprox = \x ->
     if x <= halfPi && x >= -halfPi then
         x2 = x * x
-        divByNonZeroF32 (pi2 - 4*x2) (pi2 + x2)
+        (pi2 - 4*x2) / (pi2 + x2)
     else
         -1.0 * cosApprox (x - pi)
 
@@ -481,7 +475,7 @@ spawnParticles = \model0, i, particles, pos, fade, color, currentFrame, lifeInFr
                 minDir = numRoundU32 (1_000_000.0 * chunkSize * Num.toFloat i)
                 maxDir = numRoundU32 (1_000_000.0 * chunkSize * Num.toFloat (i + 1))
                 dirRand = (Random.u32 minDir maxDir) model1.rng
-                dir = divByNonZeroF32 (Num.toFloat dirRand.value) 1_000_000.0
+                dir = (Num.toFloat dirRand.value) / 1_000_000.0
                 unitDx = cosApprox dir
                 unitDy = sinApprox dir
                 velScale = 0.01
@@ -506,7 +500,7 @@ spawnParticles = \model0, i, particles, pos, fade, color, currentFrame, lifeInFr
                         rng: lifeBonusRand.state,
                         deathTimes: List.set deathTimes id { deadFrame },
                         fades: List.set fades id fade,
-                        graphics: List.set graphics id { color, radius: divByNonZeroF32 0.015 frameScale },
+                        graphics: List.set graphics id { color, radius: 0.015 / frameScale },
                         positions: List.set positions id pos,
                         velocities: List.set velocities id { dx, dy },
                     }
